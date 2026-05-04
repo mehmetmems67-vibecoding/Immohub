@@ -7,6 +7,7 @@ import { useState, useRef, useEffect } from "react";
 
 const APP_PASSWORD = import.meta.env.VITE_APP_PASSWORD || "imoimoimoiaia";
 const API_KEY      = import.meta.env.VITE_ANTHROPIC_KEY || "";
+const sleep = ms => new Promise(r=>setTimeout(r,ms)); // B11: défini en haut
 
 // ── TRADUCTIONS ───────────────────────────────────────
 const I18N = {
@@ -222,7 +223,7 @@ const LEGAL = {
   gb:`Subject to Property Misdescriptions Act 1991 and Consumer Protection Regulations 2008. EPC required under EPB Regulations 2012. All measurements approximate.`,
 };
 
-const CURRENCIES = {EUR:"€",CHF:"CHF",GBP:"£"};
+const CURRENCIES = {"EUR":"€","CHF":"CHF","GBP":"£"};
 
 const ROOMS = [
   "Salon","Séjour","Cuisine","Chambre principale","Chambre",
@@ -269,30 +270,90 @@ JSON:
 
 // ── API ───────────────────────────────────────────────
 async function callClaude(messages, system, max=1500) {
-  const ctrl=new AbortController(), tid=setTimeout(()=>ctrl.abort(),45000);
+  const ctrl=new AbortController(), tid=setTimeout(()=>ctrl.abort(),60000);
   try {
     const res=await fetch("https://api.anthropic.com/v1/messages",{
       method:"POST",signal:ctrl.signal,
-      headers:{"Content-Type":"application/json","x-api-key":API_KEY,
-        "anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-      body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:max,system,messages})
+      headers:{
+        "Content-Type":"application/json",
+        "x-api-key": API_KEY,
+        "anthropic-version":"2023-06-01",
+        "anthropic-dangerous-direct-browser-access":"true",
+      },
+      body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:max,system,messages})
     });
-    if (!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e?.error?.message||`HTTP ${res.status}`);}
+    if (!res.ok){
+      const e=await res.json().catch(()=>({}));
+      throw new Error(e?.error?.message||`Erreur HTTP ${res.status}`);
+    }
     const data=await res.json();
     const text=data.content?.map(b=>b.text||"").join("")||"";
     try{return JSON.parse(text.replace(/```json\n?|\n?```/g,"").trim());}
     catch{return{error:"Parse failed",raw:text.slice(0,200)};}
-  } catch(e){if(e.name==="AbortError")throw new Error("Timeout 45s");throw e;}
-  finally{clearTimeout(tid);}
+  } catch(e){
+    if(e.name==="AbortError")throw new Error("Timeout — réessayez");
+    throw e;
+  } finally{clearTimeout(tid);}
 }
 
-function toB64(file){
-  return new Promise((res,rej)=>{
-    const r=new FileReader();
-    r.onload=()=>{const b=r.result?.split(",")[1]??"";if(!b)return rej(new Error("Illisible"));res({b64:b,mediaType:file.type||"image/jpeg"});};
-    r.onerror=()=>rej(new Error("Erreur lecture"));
-    r.readAsDataURL(file);
+// B04+B03: Compression avec crossOrigin + fallback FileReader
+function toB64(file) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous"; // B04: évite canvas taint
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      try {
+        const MAX = 1024;
+        let w = img.width, h = img.height;
+        if (w > MAX || h > MAX) {
+          if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+          else { w = Math.round(w * MAX / h); h = MAX; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+        const b64 = canvas.toDataURL("image/jpeg", 0.85).split(",")[1];
+        if (!b64) throw new Error("Canvas vide");
+        res({ b64, mediaType: "image/jpeg" });
+      } catch(canvasErr) {
+        // B14: Fallback FileReader si canvas échoue (SecurityError)
+        const reader = new FileReader();
+        reader.onload = () => {
+          const b = reader.result?.split(",")[1] ?? "";
+          if (!b) return rej(new Error("Lecture impossible"));
+          res({ b64: b, mediaType: file.type || "image/jpeg" });
+        };
+        reader.onerror = () => rej(new Error("Erreur lecture fichier"));
+        reader.readAsDataURL(file);
+      }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("Image illisible")); };
+    img.src = url;
   });
+}
+
+// B03: Convertir URL externe en base64 via fetch (haiku ne supporte pas source.url)
+async function urlToB64(url) {
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const blob = await resp.blob();
+    return new Promise((res, rej) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const b = reader.result?.split(",")[1] ?? "";
+        if (!b) return rej(new Error("Blob vide"));
+        res({ b64: b, mediaType: blob.type || "image/jpeg" });
+      };
+      reader.onerror = () => rej(new Error("Erreur lecture blob"));
+      reader.readAsDataURL(blob);
+    });
+  } catch(e) {
+    throw new Error(`URL inaccessible: ${e.message}`);
+  }
 }
 
 // ── STYLES ────────────────────────────────────────────
@@ -455,7 +516,7 @@ function ImmoHub(){
   const L=I18N[lang]||I18N.fr;
   const [step,setStep]=useState("fiche");
   const [photos,setPhotos]=useState([]);
-  const [urlIn,setUrlIn]=useState(""),urlErr=useState("")[1];
+  const [urlIn,setUrlIn]=useState("");
   const [urlError,setUrlError]=useState("");
   const [analyses,setAnal]=useState([]);
   const [synth,setSynth]=useState(null);
@@ -526,41 +587,48 @@ function ImmoHub(){
     setLoading(true);setError(null);setProg(0);
     setAnal([]);setSynth(null);setAnnonce(null);setStep("analyse");
     const results=[];
-    for(let i=0;i<photos.length;i++){
-      const ph=photos[i];
-      if(!mountedRef.current)break;
-      setLoadMsg(`${L.analysing} ${i+1}/${photos.length} — ${ph.roomType}`);
-      setPhotos(p=>p.map(x=>x.id===ph.id?{...x,status:"analyzing"}:x));
-      try{
-        let content;
-        if(ph.file){
-          const {b64,mediaType}=await toB64(ph.file);
-          content=[{type:"image",source:{type:"base64",media_type:mediaType,data:b64}},
-            {type:"text",text:vPrompt(ph.roomType)}];
-        } else {
-          content=[{type:"image",source:{type:"url",url:ph.url}},
-            {type:"text",text:vPrompt(ph.roomType)}];
+    try { // B06: try/finally global pour garantir setLoading(false)
+      for(let i=0;i<photos.length;i++){
+        const ph=photos[i];
+        if(!mountedRef.current)break;
+        setLoadMsg(`${L.analysing} ${i+1}/${photos.length} — ${ph.roomType}`);
+        setPhotos(p=>p.map(x=>x.id===ph.id?{...x,status:"analyzing"}:x));
+        try{
+          let b64data;
+          if(ph.file){
+            b64data = await toB64(ph.file); // Fichier galerie
+          } else {
+            b64data = await urlToB64(ph.url); // B03: URL → base64 via fetch
+          }
+          const content=[
+            {type:"image",source:{type:"base64",media_type:b64data.mediaType,data:b64data.b64}},
+            {type:"text",text:vPrompt(ph.roomType)}
+          ];
+          const res=await callClaude([{role:"user",content}],VSYS);
+          results.push({piece:ph.roomType,...res});
+          setPhotos(p=>p.map(x=>x.id===ph.id?{...x,status:"done",result:res}:x));
+          setAnal([...results]);
+        }catch(e){
+          setPhotos(p=>p.map(x=>x.id===ph.id?{...x,status:"error",errMsg:e.message}:x));
+          results.push({piece:ph.roomType,error:e.message});
+          if(mountedRef.current)setError(`Photo ${i+1}: ${e.message}`);
         }
-        const res=await callClaude([{role:"user",content}],VSYS);
-        results.push({piece:ph.roomType,...res});
-        setPhotos(p=>p.map(x=>x.id===ph.id?{...x,status:"done",result:res}:x));
-        setAnal([...results]);
-      }catch(e){
-        setPhotos(p=>p.map(x=>x.id===ph.id?{...x,status:"error"}:x));
-        results.push({piece:ph.roomType,error:e.message});
+        setProg(Math.round(((i+1)/photos.length)*75));
+        await sleep(200);
       }
-      setProg(Math.round(((i+1)/photos.length)*75));
-      await sleep(200);
+      if(mountedRef.current&&results.filter(r=>!r.error).length>0){
+        setLoadMsg("Synthèse globale…");setProg(88);setError(null);
+        try{
+          const s=await callClaude([{role:"user",content:sPrompt(results,meta)}],
+            "Expert immobilier. JSON valide uniquement sans backticks.");
+          if(mountedRef.current){setSynth(s);setProg(100);}
+        }catch(e){if(mountedRef.current)setError("Erreur synthèse: "+e.message);}
+      } else if(results.length>0&&results.every(r=>r.error)){
+        if(mountedRef.current)setError("Toutes les photos ont échoué — vérifiez votre connexion");
+      }
+    } finally { // B06: toujours libérer le loading
+      if(mountedRef.current){setLoading(false);setLoadMsg("");}
     }
-    if(mountedRef.current&&results.filter(r=>!r.error).length>0){
-      setLoadMsg("Synthèse globale…");setProg(88);
-      try{
-        const s=await callClaude([{role:"user",content:sPrompt(results,meta)}],
-          "Expert immobilier. JSON valide uniquement sans backticks.");
-        if(mountedRef.current){setSynth(s);setProg(100);}
-      }catch(e){if(mountedRef.current)setError("Erreur synthèse: "+e.message);}
-    }
-    if(mountedRef.current){setLoading(false);setLoadMsg("");}
   }
 
   async function genAnnonce(){
@@ -648,7 +716,8 @@ function ImmoHub(){
   }
 
   const currPlats=PLATFORMS[platCountry]||PLATFORMS.fr;
-  const canRun=photos.length>0&&!loading;
+  const canRun=photos.length>0&&!loading&&!!API_KEY; // B05: vérifie API_KEY
+  const DPE_VALID = ["A","B","C","D","E","F","G"]; // B08: validation stricte DPE
 
   return(
     <div style={{minHeight:"100vh",background:C.bg,color:C.text,
@@ -996,7 +1065,7 @@ function ImmoHub(){
                     </div>
                   )}
                 </div>
-                <DPE dpe={meta.dpe?.length===1?meta.dpe:synth.dpe_estime}/>
+                <DPE dpe={DPE_VALID.includes(meta.dpe)?meta.dpe:DPE_VALID.includes(synth?.dpe_estime)?synth.dpe_estime:null}/>
               </div>
               {synth.conseil_mise_en_vente&&(
                 <div style={{fontSize:12,color:"#888",fontStyle:"italic",padding:"10px 14px",
@@ -1333,4 +1402,4 @@ function ImmoHub(){
   );
 }
 
-const sleep = ms => new Promise(r=>setTimeout(r,ms));
+// ImmoHub v5 — fin
