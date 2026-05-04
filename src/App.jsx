@@ -531,6 +531,11 @@ function ImmoHub(){
   const [revMode,setRevMode]=useState(false);
   const [revInstr,setRevInstr]=useState("");
   const [revHist,setRevHist]=useState([]);
+  // Multi-langue annonces
+  const [multiLangMode,setMultiLangMode]=useState(false);
+  const [selectedLangs,setSelectedLangs]=useState({fr:true,en:false,de:false,lu:false,nl:false});
+  const [annonces,setAnnonces]=useState({}); // {fr:{...}, de:{...}, etc}
+  const [activeLang,setActiveLang]=useState("fr"); // onglet actif
   const fileRef=useRef(null),mountedRef=useRef(true);
   useEffect(()=>{mountedRef.current=true;return()=>{mountedRef.current=false;};},[]);
 
@@ -637,9 +642,37 @@ function ImmoHub(){
     try{
       const a=await callClaude([{role:"user",content:aPrompt(synth,meta,meta.langAnnonce)}],
         "Rédacteur immobilier expert. JSON valide uniquement sans backticks.",1500);
-      if(mountedRef.current)setAnnonce(a);
+      if(mountedRef.current){
+        setAnnonce(a);
+        setAnnonces({[meta.langAnnonce]:a});
+        setActiveLang(meta.langAnnonce);
+      }
     }catch(e){if(mountedRef.current)setError("Erreur: "+e.message);}
     finally{if(mountedRef.current){setLoading(false);setLoadMsg("");}}
+  }
+
+  // Génération multi-langues — génère une annonce par langue cochée
+  async function genMultiLang(){
+    if(!synth){setError("Lance d'abord l'analyse");return;}
+    const langs=Object.entries(selectedLangs).filter(([,v])=>v).map(([k])=>k);
+    if(!langs.length){setError("Coche au moins une langue");return;}
+    setLoading(true);setStep("annonce");
+    const results={};
+    for(let i=0;i<langs.length;i++){
+      const lg=langs[i];
+      setLoadMsg(`Rédaction ${["🇫🇷","🇬🇧","🇩🇪","🇱🇺","🇧🇪"][["fr","en","de","lu","nl"].indexOf(lg)]} — ${i+1}/${langs.length}`);
+      try{
+        const a=await callClaude([{role:"user",content:aPrompt(synth,meta,lg)}],
+          "Rédacteur immobilier expert. JSON valide uniquement sans backticks.",1500);
+        results[lg]=a;
+        if(mountedRef.current)setAnnonces({...results});
+      }catch(e){results[lg]={error:e.message};}
+    }
+    if(mountedRef.current){
+      setAnnonce(results[langs[0]]||null);
+      setActiveLang(langs[0]);
+      setLoading(false);setLoadMsg("");
+    }
   }
 
   async function applyRev(){
@@ -772,14 +805,6 @@ function ImmoHub(){
             </div>
           </div>
         )}
-
-        <button onClick={canRun?runAnalysis:undefined} disabled={!canRun}
-          style={{...btn(canRun?"linear-gradient(135deg,#7C6FFF,#4AE88A)":"#1A1A2E",
-            canRun?"#fff":"#444"),
-            padding:"9px 14px",fontSize:12,opacity:loading?0.6:1,
-            boxShadow:canRun?"0 4px 16px #7C6FFF40":"none"}}>
-          {loading?`⟳ ${prog}%`:canRun?`▶ ${L.analyser} (${photos.length})`:L.analyser}
-        </button>
       </div>
 
       {/* STEP BAR */}
@@ -867,6 +892,27 @@ function ImmoHub(){
                 {L.dpes.map(o=><option key={o}>{o}</option>)}
               </select>
               <DPE dpe={meta.dpe}/>
+            </MF>
+            <MF label="GES (Gaz effet de serre)">
+              <select value={meta.ges||"Non renseigné"} onChange={e=>setM("ges",e.target.value)}
+                style={{...inp,padding:"10px"}}>
+                {["Non renseigné","A","B","C","D","E","F","G"].map(o=><option key={o}>{o}</option>)}
+              </select>
+              {/* Badge GES — même style que DPE */}
+              {DPE_VALID.includes(meta.ges) && (
+                <div style={{display:"flex",gap:3,marginTop:6,flexWrap:"wrap"}}>
+                  {["A","B","C","D","E","F","G"].map(l=>(
+                    <div key={l} style={{width:l===meta.ges?26:18,height:l===meta.ges?26:18,
+                      borderRadius:4,background:l===meta.ges?"#7F5FFF":l===meta.ges?"#7F5FFF":"#7F5FFF20",
+                      display:"flex",alignItems:"center",justifyContent:"center",
+                      fontSize:l===meta.ges?11:8,fontWeight:700,
+                      color:l===meta.ges?"#fff":"#555",transition:"all 0.3s",
+                      boxShadow:l===meta.ges?"0 0 8px #7F5FFF60":"none"}}>
+                      {l}
+                    </div>
+                  ))}
+                </div>
+              )}
             </MF>
             <MF label={L.chauffage}>
               <select value={meta.chauffage} onChange={e=>setM("chauffage",e.target.value)}
@@ -1035,6 +1081,18 @@ function ImmoHub(){
               Ajoute des photos pour commencer
             </div>
           )}
+
+          {/* Bouton Analyser — en bas après les photos */}
+          {photos.length>0&&(
+            <button onClick={canRun?runAnalysis:undefined} disabled={!canRun}
+              style={{...btn(canRun?"linear-gradient(135deg,#7C6FFF,#4AE88A)":"#1A1A2E",
+                canRun?"#fff":"#444"),
+                width:"100%",padding:"16px",marginTop:16,fontSize:14,
+                opacity:loading?0.6:1,
+                boxShadow:canRun?"0 6px 20px #7C6FFF50":"none"}}>
+              {loading?`⟳ ${prog}% — ${loadMsg}`:canRun?`▶ ${L.analyser} ${photos.length} photo${photos.length>1?"s":""}`:L.analyser}
+            </button>
+          )}
         </Card>
 
         {/* ── RÉSULTATS ── */}
@@ -1104,7 +1162,7 @@ function ImmoHub(){
         )}
 
         {/* ── ANNONCE ── */}
-        {annonce&&(
+        {(annonce||Object.keys(annonces).length>0)&&(
           <div style={{animation:"fadeUp 0.4s ease"}}>
             <Card>
               <div style={{display:"flex",justifyContent:"space-between",
@@ -1130,53 +1188,151 @@ function ImmoHub(){
                   </button>
                 </div>
               </div>
+
+              {/* ── MODE RÉVISION ── */}
               {revMode&&(
                 <div style={{marginBottom:14,padding:14,background:"#0A0A18",
                   border:`1px solid ${C.acc}30`,borderRadius:10,animation:"fadeUp 0.2s ease"}}>
-                  <div style={{fontSize:11,color:C.acc,marginBottom:10}}>
-                    Que veux-tu modifier ? (le reste est préservé)
-                  </div>
-                  <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
-                    {["Ton plus formel","Ton plus chaleureux","Raccourcir","Mettre en avant le prix","Ajouter appel à l'action"].map(s=>(
-                      <button key={s} onClick={()=>setRevInstr(s)}
-                        style={{padding:"5px 10px",borderRadius:16,fontSize:10,
-                          background:revInstr===s?C.acc+"20":"#111120",
-                          border:`1px solid ${revInstr===s?C.acc:"#222"}`,
-                          color:revInstr===s?C.acc:"#555"}}>{s}</button>
-                    ))}
-                  </div>
-                  <div style={{display:"flex",gap:8}}>
-                    <textarea value={revInstr} onChange={e=>setRevInstr(e.target.value)}
-                      onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();applyRev();}}}
-                      placeholder="Instruction précise…"
-                      style={{...inp,flex:1,height:50,resize:"none"}}/>
-                    <button onClick={applyRev} disabled={!revInstr.trim()||loading}
-                      style={{...btn(C.acc),padding:"0 16px",opacity:(!revInstr.trim()||loading)?0.4:1}}>
-                      {L.appliquer}
+
+                  {/* Toggle Mode Simple / Multi-langue */}
+                  <div style={{display:"flex",gap:8,marginBottom:14}}>
+                    <button onClick={()=>setMultiLangMode(false)}
+                      style={{...btn(!multiLangMode?C.acc:C.surf,!multiLangMode?"#fff":C.muted,
+                        {border:`1px solid ${!multiLangMode?C.acc:C.brd}`,fontSize:11,padding:"7px 14px",flex:1})}}>
+                      ✍️ 1 langue
+                    </button>
+                    <button onClick={()=>setMultiLangMode(true)}
+                      style={{...btn(multiLangMode?C.acc:C.surf,multiLangMode?"#fff":C.muted,
+                        {border:`1px solid ${multiLangMode?C.acc:C.brd}`,fontSize:11,padding:"7px 14px",flex:1})}}>
+                      🌍 Multi-langues
                     </button>
                   </div>
+
+                  {!multiLangMode ? (
+                    /* MODE SIMPLE — 1 langue */
+                    <>
+                      <div style={{fontSize:11,color:C.acc,marginBottom:10}}>
+                        Langue → modifier → appliquer
+                      </div>
+                      {/* Changement de langue */}
+                      <div style={{marginBottom:10}}>
+                        <div style={{fontSize:10,color:"#555",marginBottom:6}}>CHANGER LA LANGUE</div>
+                        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                          {[["fr","🇫🇷"],["en","🇬🇧"],["de","🇩🇪"],["lu","🇱🇺"],["nl","🇧🇪"]].map(([lg,flag])=>(
+                            <button key={lg} onClick={()=>{
+                              if(annonces[lg]){setAnnonce(annonces[lg]);setActiveLang(lg);}
+                              else{setM("langAnnonce",lg);genAnnonce();}
+                            }}
+                              style={{padding:"6px 12px",borderRadius:16,fontSize:12,
+                                background:activeLang===lg?C.acc+"20":"#111120",
+                                border:`1px solid ${activeLang===lg?C.acc:"#222"}`,
+                                color:activeLang===lg?C.acc:"#555",
+                                boxShadow:annonces[lg]?`0 0 6px ${C.green}40`:"none"}}>
+                              {flag} {annonces[lg]?"✓":""}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Instructions révision */}
+                      <div style={{fontSize:10,color:"#555",marginBottom:8}}>MODIFIER LE TEXTE</div>
+                      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
+                        {["Ton plus formel","Ton plus chaleureux","Raccourcir","Mettre en avant le prix","Ajouter appel à l'action"].map(s=>(
+                          <button key={s} onClick={()=>setRevInstr(s)}
+                            style={{padding:"5px 10px",borderRadius:16,fontSize:10,
+                              background:revInstr===s?C.acc+"20":"#111120",
+                              border:`1px solid ${revInstr===s?C.acc:"#222"}`,
+                              color:revInstr===s?C.acc:"#555"}}>{s}</button>
+                        ))}
+                      </div>
+                      <div style={{display:"flex",gap:8}}>
+                        <textarea value={revInstr} onChange={e=>setRevInstr(e.target.value)}
+                          onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();applyRev();}}}
+                          placeholder="Instruction précise…"
+                          style={{...inp,flex:1,height:50,resize:"none"}}/>
+                        <button onClick={applyRev} disabled={!revInstr.trim()||loading}
+                          style={{...btn(C.acc),padding:"0 16px",opacity:(!revInstr.trim()||loading)?0.4:1}}>
+                          {L.appliquer}
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    /* MODE MULTI-LANGUES — cases à cocher */
+                    <>
+                      <div style={{fontSize:11,color:C.acc,marginBottom:12}}>
+                        Coche les langues souhaitées — une annonce sera générée pour chacune
+                      </div>
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+                        {[["fr","🇫🇷 Français"],["en","🇬🇧 English"],
+                          ["de","🇩🇪 Deutsch"],["lu","🇱🇺 Lëtzebuergesch"],["nl","🇧🇪 Nederlands"]].map(([lg,label])=>(
+                          <label key={lg} style={{display:"flex",alignItems:"center",gap:8,
+                            fontSize:13,color:selectedLangs[lg]?C.text:"#555",
+                            cursor:"pointer",padding:"8px 10px",borderRadius:8,
+                            background:selectedLangs[lg]?C.acc+"15":"#0A0A18",
+                            border:`1px solid ${selectedLangs[lg]?C.acc+"50":C.brd}`}}>
+                            <input type="checkbox" checked={!!selectedLangs[lg]}
+                              onChange={e=>setSelectedLangs(s=>({...s,[lg]:e.target.checked}))}/>
+                            {label}
+                            {annonces[lg]&&<span style={{marginLeft:"auto",color:C.green,fontSize:11}}>✓</span>}
+                          </label>
+                        ))}
+                      </div>
+                      <button onClick={genMultiLang} disabled={loading||!Object.values(selectedLangs).some(Boolean)}
+                        style={{...btn("linear-gradient(135deg,#7C6FFF,#4AE88A)"),
+                          width:"100%",padding:"12px",fontSize:13,
+                          opacity:(loading||!Object.values(selectedLangs).some(Boolean))?0.5:1}}>
+                        {loading?`⟳ ${loadMsg}`:`🌍 Générer ${Object.values(selectedLangs).filter(Boolean).length} langue(s)`}
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
-              <div style={{fontSize:16,fontWeight:700,marginBottom:10,lineHeight:1.4}}>
-                {annonce.titre_principal}
-              </div>
-              {annonce.points_cles?.length>0&&(
-                <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
-                  {annonce.points_cles.map((p,i)=>(
-                    <span key={i} style={{fontSize:11,padding:"4px 10px",borderRadius:12,
-                      background:C.acc+"18",color:C.acc,border:`1px solid ${C.acc}30`}}>{p}</span>
-                  ))}
+
+              {/* Onglets langues si multi-langue généré */}
+              {Object.keys(annonces).length>1&&(
+                <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14}}>
+                  {Object.keys(annonces).map(lg=>{
+                    const flags={fr:"🇫🇷",en:"🇬🇧",de:"🇩🇪",lu:"🇱🇺",nl:"🇧🇪"};
+                    return(
+                      <button key={lg} onClick={()=>{setActiveLang(lg);setAnnonce(annonces[lg]);}}
+                        style={{padding:"7px 14px",borderRadius:8,fontSize:12,fontWeight:600,
+                          background:activeLang===lg?C.acc:C.surf,
+                          color:activeLang===lg?"#fff":"#666",
+                          border:`1px solid ${activeLang===lg?C.acc:C.brd}`}}>
+                        {flags[lg]} {lg.toUpperCase()}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
-              <div style={{fontSize:13,lineHeight:1.85,color:"#B0B0C8",whiteSpace:"pre-wrap",
-                background:"#06060F",padding:14,borderRadius:8,border:`1px solid ${C.brd}`}}>
-                {annonce.description_longue}
-              </div>
-              {annonce.avertissement_dpe&&(
-                <div style={{marginTop:10,padding:"8px 12px",background:"#1F0A0A",
-                  border:`1px solid ${C.err}30`,borderRadius:6,fontSize:11,color:C.err}}>
-                  {annonce.avertissement_dpe}
-                </div>
+
+              {/* Contenu annonce */}
+              {annonce&&!annonce.error&&(
+                <>
+                  <div style={{fontSize:16,fontWeight:700,marginBottom:10,lineHeight:1.4}}>
+                    {annonce.titre_principal}
+                  </div>
+                  {annonce.points_cles?.length>0&&(
+                    <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
+                      {annonce.points_cles.map((p,i)=>(
+                        <span key={i} style={{fontSize:11,padding:"4px 10px",borderRadius:12,
+                          background:C.acc+"18",color:C.acc,border:`1px solid ${C.acc}30`}}>{p}</span>
+                      ))}
+                    </div>
+                  )}
+                  <div style={{fontSize:13,lineHeight:1.85,color:"#B0B0C8",whiteSpace:"pre-wrap",
+                    background:"#06060F",padding:14,borderRadius:8,border:`1px solid ${C.brd}`}}>
+                    {annonce.description_longue}
+                  </div>
+                  {annonce.avertissement_dpe&&(
+                    <div style={{marginTop:10,padding:"8px 12px",background:"#1F0A0A",
+                      border:`1px solid ${C.err}30`,borderRadius:6,fontSize:11,color:C.err}}>
+                      {annonce.avertissement_dpe}
+                    </div>
+                  )}
+                </>
+              )}
+              {annonce?.error&&(
+                <div style={{color:C.err,fontSize:12,padding:10}}>❌ {annonce.error}</div>
               )}
             </Card>
           </div>
