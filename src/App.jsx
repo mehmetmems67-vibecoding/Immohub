@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 
 // ══════════════════════════════════════════════════════
-// IMMOHUB v5 — Multilingue · Multi-pays · Multi-plateforme
-// MDP · Fiche interne · Mentions légales · Devise
+// ZYMMO v1 — AI · Vision · Immobilier
+// Drone Logo · Multi-langue · Multi-pays · Profil Pro
 // ══════════════════════════════════════════════════════
 
 const APP_PASSWORD = import.meta.env.VITE_APP_PASSWORD || "imoimoimoiaia";
 const API_KEY      = import.meta.env.VITE_ANTHROPIC_KEY || "";
-const sleep = ms => new Promise(r=>setTimeout(r,ms)); // B11: défini en haut
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
 
 // ── TRADUCTIONS ───────────────────────────────────────
 const I18N = {
@@ -223,12 +223,16 @@ const LEGAL = {
   gb:`Subject to Property Misdescriptions Act 1991 and Consumer Protection Regulations 2008. EPC required under EPB Regulations 2012. All measurements approximate.`,
 };
 
+// Langue automatique par pays de plateforme
+const PLATFORM_LANG = {fr:"fr",de:"de",be:"nl",lu:"fr",gb:"en"};
+
 const CURRENCIES = {"EUR":"€","CHF":"CHF","GBP":"£"};
 
 const ROOMS = [
   "Salon","Séjour","Cuisine","Chambre principale","Chambre",
   "Salle de bain","Salle d'eau","WC","Entrée","Bureau",
-  "Dressing","Cave","Garage","Terrasse","Balcon","Jardin","Façade","Autre"
+  "Dressing","Cellier","Buanderie","Cave","Garage",
+  "Terrasse","Balcon","Jardin","Façade","Autre"
 ];
 
 const DPE_C = {
@@ -252,20 +256,26 @@ const sPrompt = (analyses, meta) => {
 {"surface_totale_estimee":<n>,"nb_pieces":<n>,"nb_chambres":<n>,"etat_global":"<état>","score_global":<1-10>,"style_dominant":"<style>","dpe_estime":"<A-G>","points_forts":["top5"],"points_faibles":["défauts"],"defauts_critiques":["bloquants"],"travaux_urgents":["urgents"],"travaux_valorisants":["valorisants"],"budget_travaux_estime":"<fourchette>","suggestions_retouche_globales":["retouches"],"profil_acheteur":"<profil>","fourchette_prix_basse":<n>,"fourchette_prix_haute":<n>,"conseil_mise_en_vente":"2 phrases","pense_betes":["notes visites et négociations"]}`;
 };
 
-const aPrompt = (synth, meta, lang) => {
+const aPrompt = (synth, meta, lang, profil={}) => {
   const dev = CURRENCIES[meta.devise]||"€";
   const prix = meta.prix ? `${Number(meta.prix).toLocaleString()} ${dev}`
     : synth.fourchette_prix_basse ? `${synth.fourchette_prix_basse.toLocaleString()}–${synth.fourchette_prix_haute.toLocaleString()} ${dev}`
     : "Prix sur demande";
   const langName = {fr:"français",en:"anglais/English",de:"allemand/Deutsch",lu:"luxembourgeois",nl:"néerlandais/Nederlands"}[lang]||"français";
-  return `Rédige une annonce immobilière professionnelle ENTIÈREMENT EN ${langName.toUpperCase()}.
-BIEN: ${meta.type} ${synth.surface_totale_estimee||meta.surface}m² à ${meta.ville||"NC"} (${(COUNTRIES[meta.pays]||"FR").replace(/🇫🇷|🇩🇪|🇧🇪|🇱🇺|🇬🇧/g,"").trim()})
-ÉTAT: ${synth.etat_global} — ${synth.score_global}/10 | DPE: ${meta.dpe&&!["Non renseigné","Not specified","Nicht angegeben","Net uginn","Niet opgegeven"].includes(meta.dpe)?meta.dpe:synth.dpe_estime||"NC"}
+  const countryCtx = {fr:"marché immobilier français",de:"deutschen Immobilienmarkt",be:"marché immobilier belge",lu:"Luxemburger Immobilienmarkt",gb:"UK property market"}[meta.pays]||"marché immobilier";
+  const profilInfo = profil.nomAgence ? `AGENCE: ${profil.nomAgence}${profil.nomAgent?` | Agent: ${profil.nomAgent}`:""}${profil.telephone?` | Tél: ${profil.telephone}`:""}${profil.email?` | Email: ${profil.email}`:""}` : "";
+
+  return `Rédige une annonce immobilière professionnelle ENTIÈREMENT EN ${langName.toUpperCase()} pour le ${countryCtx}.
+BIEN: ${meta.type} ${synth.surface_totale_estimee||meta.surface}m² à ${meta.ville||"NC"}
+ÉTAT: ${synth.etat_global} — ${synth.score_global}/10
+DPE: ${["A","B","C","D","E","F","G"].includes(meta.dpe)?meta.dpe:synth.dpe_estime||"NC"} | GES: ${["A","B","C","D","E","F","G"].includes(meta.ges)?meta.ges:"NC"}
 PRIX: ${prix} | CHAUFFAGE: ${meta.chauffage}
 ATOUTS: ${(synth.points_forts||[]).join(", ")}
-ÉQUIPEMENTS: ${["cave","parking","terrasse","balcon","jardin","ascenseur","piscine"].filter(k=>meta[k]).join(", ")||"standard"}
+ÉQUIPEMENTS: ${["cave","parking","terrasse","balcon","jardin","ascenseur","piscine","cellier","buanderie"].filter(k=>meta[k]).join(", ")||"standard"}
+${profilInfo}
+Adapte le style et la terminologie au pays: ${COUNTRIES[meta.pays]||"France"}.
 JSON:
-{"titre_principal":"≤80 chars","titre_court":"≤60 chars","description_courte":"150 mots","description_longue":"300 mots","points_cles":["5 points"],"tags":["SEO"],"avertissement_dpe":${meta.dpe&&["F","G"].includes(meta.dpe)?'"⚠️ Passoire thermique"':"null"}}`;
+{"titre_principal":"≤80 chars","titre_court":"≤60 chars","description_courte":"150 mots","description_longue":"300 mots","points_cles":["5 points"],"tags":["SEO"],"avertissement_dpe":${["F","G"].includes(meta.dpe)?'"⚠️ Passoire thermique / Energiearm"':"null"}}`;
 };
 
 // ── API ───────────────────────────────────────────────
@@ -462,18 +472,77 @@ function Login({onOk}){
       <style>{`
         @keyframes shake{0%,100%{transform:translateX(0)}25%,75%{transform:translateX(-8px)}50%{transform:translateX(8px)}}
         @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
-        @keyframes glow{0%,100%{box-shadow:0 0 20px #7C6FFF30}50%{box-shadow:0 0 40px #7C6FFF60}}
+        @keyframes floatDrone{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-8px) rotate(3deg)}}
+        @keyframes glowLogo{0%,100%{filter:drop-shadow(0 0 10px #7C6FFF40)}50%{filter:drop-shadow(0 0 24px #7C6FFF80)}}
+        @keyframes blink{0%,100%{opacity:1}50%{opacity:0.1}}
+        @keyframes orbit{from{transform:rotate(0deg) translateX(36px) rotate(0deg)}to{transform:rotate(360deg) translateX(36px) rotate(-360deg)}}
       `}</style>
       <div style={{width:"100%",maxWidth:380,animation:"fadeUp 0.5s ease"}}>
+        {/* Logo Zymmo Login */}
         <div style={{textAlign:"center",marginBottom:32}}>
-          <div style={{width:72,height:72,borderRadius:18,margin:"0 auto 16px",
-            background:"linear-gradient(135deg,#7C6FFF,#4AE88A)",
-            display:"flex",alignItems:"center",justifyContent:"center",
-            fontSize:32,animation:"glow 3s infinite"}}>🏠</div>
-          <div style={{fontWeight:800,fontSize:26,letterSpacing:3,
-            background:"linear-gradient(90deg,#7C6FFF,#4AE88A)",
-            WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>IMMO HUB</div>
-          <div style={{fontSize:11,color:"#444",letterSpacing:2,marginTop:4}}>v5 · Multilingue · Multi-pays</div>
+          <div style={{position:"relative",width:100,height:100,margin:"0 auto 20px"}}>
+            {/* Maison principale */}
+            <svg width="100" height="100" viewBox="0 0 100 100"
+              style={{animation:"glowLogo 2s ease-in-out infinite"}}>
+              <defs>
+                <linearGradient id="zLogin" x1="0" y1="0" x2="100" y2="100">
+                  <stop offset="0%" stopColor="#7C6FFF"/>
+                  <stop offset="60%" stopColor="#4A8EFF"/>
+                  <stop offset="100%" stopColor="#4AE88A"/>
+                </linearGradient>
+                <linearGradient id="zLoginFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#7C6FFF" stopOpacity="0.35"/>
+                  <stop offset="100%" stopColor="#4AE88A" stopOpacity="0.08"/>
+                </linearGradient>
+              </defs>
+              <rect width="100" height="100" rx="24" fill="#0A0820"/>
+              <rect width="100" height="100" rx="24" fill="url(#zLoginFill)"/>
+              {/* Grille sol */}
+              <line x1="50" y1="86" x2="10" y2="100" stroke="#7C6FFF" strokeWidth="0.5" opacity="0.15"/>
+              <line x1="50" y1="86" x2="30" y2="100" stroke="#7C6FFF" strokeWidth="0.5" opacity="0.15"/>
+              <line x1="50" y1="86" x2="70" y2="100" stroke="#7C6FFF" strokeWidth="0.5" opacity="0.15"/>
+              <line x1="50" y1="86" x2="90" y2="100" stroke="#7C6FFF" strokeWidth="0.5" opacity="0.15"/>
+              {/* Toit */}
+              <polygon points="50,30 78,54 22,54" fill="url(#zLogin)" opacity="0.95"/>
+              {/* Corps */}
+              <rect x="26" y="54" width="48" height="30" fill="#7C6FFF" opacity="0.2"/>
+              <rect x="26" y="54" width="48" height="30" fill="none" stroke="url(#zLogin)" strokeWidth="2"/>
+              {/* Porte arrondie */}
+              <rect x="40" y="66" width="20" height="18" rx="10" fill="url(#zLogin)" opacity="0.85"/>
+              {/* Fenêtres */}
+              <rect x="30" y="58" width="12" height="12" rx="2" fill="#4AE88A" opacity="0.5"/>
+              <rect x="30" y="58" width="12" height="12" rx="2" fill="none" stroke="#4AE88A" strokeWidth="1"/>
+              <rect x="58" y="58" width="12" height="12" rx="2" fill="#4AE88A" opacity="0.5"/>
+              <rect x="58" y="58" width="12" height="12" rx="2" fill="none" stroke="#4AE88A" strokeWidth="1"/>
+              {/* Orbite drone */}
+              <ellipse cx="50" cy="40" rx="30" ry="10" fill="none" stroke="#4AE88A" strokeWidth="0.8" strokeDasharray="4,4" opacity="0.3"/>
+            </svg>
+            {/* Drone en orbite */}
+            <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",
+              width:0,height:0,animation:"orbit 4s linear infinite"}}>
+              <svg width="22" height="16" viewBox="0 0 22 16"
+                style={{position:"absolute",top:-8,left:0}}>
+                <rect x="6" y="4" width="10" height="8" rx="2.5" fill="#00F5FF" opacity="0.95"/>
+                <line x1="2" y1="5" x2="7" y2="7" stroke="#00F5FF" strokeWidth="1.2"/>
+                <line x1="15" y1="7" x2="20" y2="5" stroke="#00F5FF" strokeWidth="1.2"/>
+                <line x1="2" y1="11" x2="7" y2="9" stroke="#00F5FF" strokeWidth="1.2"/>
+                <line x1="15" y1="9" x2="20" y2="11" stroke="#00F5FF" strokeWidth="1.2"/>
+                <ellipse cx="2" cy="7" rx="3" ry="1.2" fill="none" stroke="#00F5FF" strokeWidth="0.9" opacity="0.8"/>
+                <ellipse cx="20" cy="7" rx="3" ry="1.2" fill="none" stroke="#00F5FF" strokeWidth="0.9" opacity="0.8"/>
+                <ellipse cx="2" cy="11" rx="3" ry="1.2" fill="none" stroke="#00F5FF" strokeWidth="0.9" opacity="0.8"/>
+                <ellipse cx="20" cy="11" rx="3" ry="1.2" fill="none" stroke="#00F5FF" strokeWidth="0.9" opacity="0.8"/>
+                <circle cx="11" cy="12" r="2" fill="#FFD700"/>
+                <circle cx="11" cy="4" r="1.2" fill="#FF2244" style={{animation:"blink 0.7s infinite"}}/>
+              </svg>
+            </div>
+          </div>
+          <div style={{fontWeight:900,fontSize:30,letterSpacing:5,
+            background:"linear-gradient(90deg,#7C6FFF,#4A8EFF,#4AE88A)",
+            WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",
+            fontFamily:"Georgia,serif"}}>ZYMMO</div>
+          <div style={{fontSize:11,color:"#555",letterSpacing:4,marginTop:6,fontFamily:"system-ui"}}>
+            AI · VISION · IMMOBILIER
+          </div>
         </div>
         <div style={{background:C.surf,borderRadius:16,border:`1px solid ${C.brd}`,
           padding:"28px 24px",animation:shake?"shake 0.5s ease":"none"}}>
@@ -540,14 +609,25 @@ function ImmoHub(){
   useEffect(()=>{mountedRef.current=true;return()=>{mountedRef.current=false;};},[]);
 
   const [meta,setMeta]=useState({
+    // PAYS EN PREMIER
+    pays:"fr",
     type:"Appartement",adresse:"",ville:"",surface:"",pieces:"",chambres:"",
-    etage:"",annee:"",prix:"",charges:"",dpe:"Non renseigné",
-    chauffage:"Collectif gaz",exposition:"Non renseignée",pays:"fr",
+    etage:"",annee:"",prix:"",charges:"",
+    dpe:"Non renseigné",ges:"Non renseigné",
+    chauffage:"Collectif gaz",exposition:"Non renseignée",
     devise:"EUR",langAnnonce:"fr",
     cave:false,parking:false,terrasse:false,balcon:false,jardin:false,
     ascenseur:false,double_vitrage:false,fibre:false,piscine:false,
-    gardien:false,digicode:false,
+    gardien:false,digicode:false,cellier:false,buanderie:false,
   });
+
+  // Profil professionnel
+  const [profil,setProfil]=useState({
+    nomAgence:"",nomAgent:"",telephone:"",email:"",siteWeb:"",
+    logoUrl:"",slogan:"",
+  });
+  const setP=(k,v)=>setProfil(p=>({...p,[k]:v}));
+  const [profilOpen,setProfilOpen]=useState(false);
   const setM=(k,v)=>setMeta(m=>({...m,[k]:v}));
   const dev=CURRENCIES[meta.devise]||"€";
 
@@ -640,37 +720,41 @@ function ImmoHub(){
     if(!synth){setError("Lance d'abord l'analyse");return;}
     setLoading(true);setLoadMsg("Rédaction…");setStep("annonce");
     try{
-      const a=await callClaude([{role:"user",content:aPrompt(synth,meta,meta.langAnnonce)}],
+      const a=await callClaude([{role:"user",content:aPrompt(synth,meta,meta.langAnnonce,profil)}],
         "Rédacteur immobilier expert. JSON valide uniquement sans backticks.",1500);
       if(mountedRef.current){
         setAnnonce(a);
-        setAnnonces({[meta.langAnnonce]:a});
+        setAnnonces(prev=>({...prev,[meta.langAnnonce]:a}));
         setActiveLang(meta.langAnnonce);
       }
     }catch(e){if(mountedRef.current)setError("Erreur: "+e.message);}
     finally{if(mountedRef.current){setLoading(false);setLoadMsg("");}}
   }
 
-  // Génération multi-langues — génère une annonce par langue cochée
+  // Génération multi-langues simultanée
   async function genMultiLang(){
     if(!synth){setError("Lance d'abord l'analyse");return;}
     const langs=Object.entries(selectedLangs).filter(([,v])=>v).map(([k])=>k);
     if(!langs.length){setError("Coche au moins une langue");return;}
     setLoading(true);setStep("annonce");
-    const results={};
+    const flags={fr:"🇫🇷",en:"🇬🇧",de:"🇩🇪",lu:"🇱🇺",nl:"🇧🇪"};
+    const results={...annonces};
     for(let i=0;i<langs.length;i++){
       const lg=langs[i];
-      setLoadMsg(`Rédaction ${["🇫🇷","🇬🇧","🇩🇪","🇱🇺","🇧🇪"][["fr","en","de","lu","nl"].indexOf(lg)]} — ${i+1}/${langs.length}`);
+      if(results[lg]) continue; // déjà générée → skip
+      setLoadMsg(`${flags[lg]} Rédaction ${lg.toUpperCase()} — ${i+1}/${langs.length}`);
       try{
-        const a=await callClaude([{role:"user",content:aPrompt(synth,meta,lg)}],
-          "Rédacteur immobilier expert. JSON valide uniquement sans backticks.",1500);
+        const a=await callClaude(
+          [{role:"user",content:aPrompt(synth,meta,lg,profil)}],
+          "Rédacteur immobilier expert. JSON valide uniquement sans backticks.",1500
+        );
         results[lg]=a;
         if(mountedRef.current)setAnnonces({...results});
       }catch(e){results[lg]={error:e.message};}
     }
     if(mountedRef.current){
-      setAnnonce(results[langs[0]]||null);
-      setActiveLang(langs[0]);
+      const firstOk=langs.find(l=>results[l]&&!results[l].error);
+      if(firstOk){setAnnonce(results[firstOk]);setActiveLang(firstOk);}
       setLoading(false);setLoadMsg("");
     }
   }
@@ -749,8 +833,41 @@ function ImmoHub(){
   }
 
   const currPlats=PLATFORMS[platCountry]||PLATFORMS.fr;
-  const canRun=photos.length>0&&!loading&&!!API_KEY; // B05: vérifie API_KEY
-  const DPE_VALID = ["A","B","C","D","E","F","G"]; // B08: validation stricte DPE
+  const canRun=photos.length>0&&!loading&&!!API_KEY;
+  const DPE_VALID = ["A","B","C","D","E","F","G"];
+
+  // Changer pays plateforme → auto-langue
+  function changePlatCountry(country) {
+    setPC(country);
+    setPlat(PLATFORMS[country][0].id);
+    // Générer annonce dans la langue du pays si pas encore disponible
+    const targetLang = PLATFORM_LANG[country]||"fr";
+    if (synth && !annonces[targetLang]) {
+      setM("langAnnonce", targetLang);
+      setTimeout(()=>genAnnonceForLang(targetLang), 100);
+    } else if (annonces[targetLang]) {
+      setAnnonce(annonces[targetLang]);
+      setActiveLang(targetLang);
+    }
+  }
+
+  // Générer annonce pour une langue spécifique
+  async function genAnnonceForLang(lg) {
+    if (!synth) return;
+    setLoading(true); setLoadMsg(`Rédaction ${lg}…`);
+    try {
+      const a = await callClaude(
+        [{role:"user",content:aPrompt(synth,meta,lg,profil)}],
+        "Rédacteur immobilier expert. JSON valide uniquement sans backticks.",1500
+      );
+      if (mountedRef.current) {
+        setAnnonces(prev=>({...prev,[lg]:a}));
+        setAnnonce(a);
+        setActiveLang(lg);
+      }
+    } catch(e) { if(mountedRef.current) setError("Erreur: "+e.message); }
+    finally { if(mountedRef.current){setLoading(false);setLoadMsg("");} }
+  }
 
   return(
     <div style={{minHeight:"100vh",background:C.bg,color:C.text,
@@ -759,6 +876,8 @@ function ImmoHub(){
         @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
         @keyframes spin{to{transform:rotate(360deg)}}
         @keyframes glow{0%,100%{box-shadow:0 0 12px #7C6FFF30}50%{box-shadow:0 0 28px #7C6FFF70}}
+        @keyframes floatDrone{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-5px) rotate(2deg)}}
+        @keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
         *{box-sizing:border-box}input,select,textarea{outline:none;font-family:inherit}
         button{cursor:pointer;border:none;font-family:inherit}
         input[type=checkbox]{accent-color:#7C6FFF;cursor:pointer;width:17px;height:17px}
@@ -771,30 +890,83 @@ function ImmoHub(){
         flexShrink:0,display:"flex",alignItems:"center",justifyContent:"space-between",
         gap:8,flexWrap:"wrap"}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <div style={{width:34,height:34,borderRadius:8,
-            background:"linear-gradient(135deg,#7C6FFF,#4AE88A)",
-            display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,
-            animation:loading?"glow 2s infinite":"none"}}>
-            {loading?<span style={{animation:"spin 1s linear infinite",display:"block",color:"#fff"}}>◌</span>:"🏠"}
+          {/* LOGO ZYMMO — Maison + Drone flottant */}
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <div style={{position:"relative",width:42,height:42,flexShrink:0}}>
+              <svg width="42" height="42" viewBox="0 0 44 44"
+                style={{filter:loading?"drop-shadow(0 0 10px #7C6FFF)":"drop-shadow(0 0 4px #7C6FFF50)",transition:"filter 0.3s"}}>
+                <defs>
+                  <linearGradient id="zLogo" x1="0" y1="0" x2="44" y2="44">
+                    <stop offset="0%" stopColor="#7C6FFF"/>
+                    <stop offset="100%" stopColor="#4AE88A"/>
+                  </linearGradient>
+                  <linearGradient id="zLogoFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#7C6FFF" stopOpacity="0.3"/>
+                    <stop offset="100%" stopColor="#4AE88A" stopOpacity="0.1"/>
+                  </linearGradient>
+                </defs>
+                <rect width="44" height="44" rx="11" fill="#0A0820"/>
+                <rect width="44" height="44" rx="11" fill="url(#zLogoFill)"/>
+                <polygon points="22,13 37,25 7,25" fill="url(#zLogo)" opacity="0.95"/>
+                <rect x="10" y="25" width="24" height="14" fill="#7C6FFF" opacity="0.2"/>
+                <rect x="10" y="25" width="24" height="14" fill="none" stroke="url(#zLogo)" strokeWidth="1.5"/>
+                <rect x="18" y="31" width="8" height="8" rx="4" fill="url(#zLogo)" opacity="0.9"/>
+                <rect x="12" y="27" width="7" height="7" rx="1.5" fill="#4AE88A" opacity="0.5"/>
+                <rect x="25" y="27" width="7" height="7" rx="1.5" fill="#4AE88A" opacity="0.5"/>
+              </svg>
+              {/* Mini Drone flottant */}
+              <div style={{position:"absolute",top:-9,right:-9,animation:"floatDrone 2s ease-in-out infinite"}}>
+                <svg width="20" height="15" viewBox="0 0 22 16">
+                  <rect x="7" y="5" width="8" height="6" rx="2" fill="#00F5FF" opacity="0.95"/>
+                  <line x1="3" y1="6" x2="8" y2="7" stroke="#00F5FF" strokeWidth="1"/>
+                  <line x1="14" y1="7" x2="19" y2="6" stroke="#00F5FF" strokeWidth="1"/>
+                  <line x1="3" y1="11" x2="8" y2="10" stroke="#00F5FF" strokeWidth="1"/>
+                  <line x1="14" y1="10" x2="19" y2="11" stroke="#00F5FF" strokeWidth="1"/>
+                  <ellipse cx="3" cy="7" rx="2.5" ry="1" fill="none" stroke="#00F5FF" strokeWidth="0.8" opacity="0.8"/>
+                  <ellipse cx="19" cy="7" rx="2.5" ry="1" fill="none" stroke="#00F5FF" strokeWidth="0.8" opacity="0.8"/>
+                  <ellipse cx="3" cy="11" rx="2.5" ry="1" fill="none" stroke="#00F5FF" strokeWidth="0.8" opacity="0.8"/>
+                  <ellipse cx="19" cy="11" rx="2.5" ry="1" fill="none" stroke="#00F5FF" strokeWidth="0.8" opacity="0.8"/>
+                  <circle cx="11" cy="11" r="1.5" fill="#FFD700"/>
+                  <circle cx="11" cy="5" r="1" fill="#FF2244" style={{animation:"blink 0.8s infinite"}}/>
+                </svg>
+              </div>
+            </div>
+            <div>
+              <div style={{fontWeight:900,fontSize:17,letterSpacing:3,
+                background:"linear-gradient(90deg,#7C6FFF,#4AE88A)",
+                WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",
+                fontFamily:"Georgia,serif"}}>ZYMMO</div>
+              <div style={{fontSize:8,color:"#444",letterSpacing:2}}>AI · VISION · IMMOBILIER</div>
+            </div>
           </div>
-          <div>
-            <div style={{fontWeight:800,fontSize:15,letterSpacing:2,
-              background:"linear-gradient(90deg,#7C6FFF,#4AE88A)",
-              WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>IMMO HUB</div>
-            <div style={{fontSize:8,color:"#444",letterSpacing:2}}>v5 · Multilingue · Multi-pays</div>
-          </div>
+          {/* Profil agence mini */}
+          {profil.nomAgence&&(
+            <div style={{fontSize:10,color:C.gold,borderLeft:`1px solid ${C.brd}`,
+              paddingLeft:8,display:"flex",flexDirection:"column"}}>
+              <span style={{fontWeight:700}}>{profil.nomAgence}</span>
+              {profil.nomAgent&&<span style={{color:"#666"}}>{profil.nomAgent}</span>}
+            </div>
+          )}
         </div>
 
-        {/* Sélecteur langue interface */}
-        <select value={lang} onChange={e=>setLang(e.target.value)}
-          style={{background:C.surf,border:`1px solid ${C.brd}`,borderRadius:7,
-            padding:"6px 10px",color:C.text,fontSize:12,cursor:"pointer"}}>
-          <option value="fr">🇫🇷 Français</option>
-          <option value="en">🇬🇧 English</option>
-          <option value="de">🇩🇪 Deutsch</option>
-          <option value="lu">🇱🇺 Lëtzebuergesch</option>
-          <option value="nl">🇧🇪 Nederlands</option>
-        </select>
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          {/* Bouton profil pro */}
+          <button onClick={()=>setProfilOpen(p=>!p)}
+            style={{...btn(profilOpen?C.gold+"20":C.surf,profilOpen?C.gold:C.muted,
+              {border:`1px solid ${profilOpen?C.gold:C.brd}`,fontSize:11,padding:"6px 10px"})}}>
+            👤
+          </button>
+          {/* Sélecteur langue interface */}
+          <select value={lang} onChange={e=>setLang(e.target.value)}
+            style={{background:C.surf,border:`1px solid ${C.brd}`,borderRadius:7,
+              padding:"6px 10px",color:C.text,fontSize:12,cursor:"pointer"}}>
+            <option value="fr">🇫🇷 FR</option>
+            <option value="en">🇬🇧 EN</option>
+            <option value="de">🇩🇪 DE</option>
+            <option value="lu">🇱🇺 LU</option>
+            <option value="nl">🇧🇪 NL</option>
+          </select>
+        </div>
 
         {loading&&(
           <div style={{flex:1,minWidth:100,margin:"0 8px"}}>
@@ -806,6 +978,36 @@ function ImmoHub(){
           </div>
         )}
       </div>
+
+      {/* PROFIL PRO — panneau déroulant */}
+      {profilOpen&&(
+        <div style={{padding:"14px 16px",background:"#0A0A1E",
+          borderBottom:`1px solid ${C.gold}30`,animation:"fadeUp 0.2s ease"}}>
+          <div style={{fontSize:11,color:C.gold,marginBottom:12,letterSpacing:1,fontWeight:700}}>
+            👤 PROFIL PROFESSIONNEL
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:10}}>
+            {[
+              ["nomAgence","🏢 Nom de l'agence","ImmoHub Conseil"],
+              ["nomAgent","👤 Nom de l'agent","Jean Dupont"],
+              ["telephone","📞 Téléphone","+352 123 456 789"],
+              ["email","📧 Email","contact@immohub.lu"],
+              ["siteWeb","🌐 Site web","www.immohub.lu"],
+              ["slogan","💬 Slogan","Votre bien entre de bonnes mains"],
+            ].map(([k,label,ph])=>(
+              <div key={k} style={{display:"flex",flexDirection:"column",gap:4}}>
+                <label style={{fontSize:10,color:C.muted,letterSpacing:1}}>{label}</label>
+                <input value={profil[k]} onChange={e=>setP(k,e.target.value)}
+                  placeholder={ph}
+                  style={{...inp,fontSize:12,padding:"8px 10px"}}/>
+              </div>
+            ))}
+          </div>
+          <div style={{marginTop:10,fontSize:10,color:"#555",fontStyle:"italic"}}>
+            Ces infos apparaîtront dans l'aperçu plateforme et la fiche interne
+          </div>
+        </div>
+      )}
 
       {/* STEP BAR */}
       <div style={{padding:"10px 16px",background:"#060610",
@@ -832,9 +1034,31 @@ function ImmoHub(){
       {/* CONTENU */}
       <div style={{flex:1,overflowY:"auto",padding:"14px 16px"}}>
 
-        {/* ── FICHE BIEN ── */}
+        {/* ── FICHE BIEN — PAYS EN PREMIER ── */}
         <Card>
-          <ST>{L.typeBien&&"📋 "+L.infoSub}</ST>
+          <ST>📋 {L.infoSub}</ST>
+
+          {/* PAYS EN PREMIER */}
+          <div style={{marginBottom:14,padding:"12px 14px",background:"#0A0A1E",
+            borderRadius:10,border:`1px solid ${C.acc}30`}}>
+            <div style={{fontSize:10,color:C.acc,letterSpacing:1,marginBottom:8,fontWeight:700}}>
+              🌍 PAYS DU BIEN — définit les plateformes, mentions légales et langue
+            </div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              {Object.entries(COUNTRIES).map(([k,v])=>(
+                <button key={k} onClick={()=>{setM("pays",k);setM("langAnnonce",PLATFORM_LANG[k]||"fr");}}
+                  style={{padding:"8px 14px",borderRadius:8,fontSize:12,fontWeight:600,
+                    background:meta.pays===k?C.acc:C.surf,
+                    color:meta.pays===k?"#fff":"#666",
+                    border:`1px solid ${meta.pays===k?C.acc:C.brd}`,
+                    boxShadow:meta.pays===k?`0 0 12px ${C.acc}40`:"none",
+                    transition:"all 0.2s"}}>
+                  {v}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:10,marginBottom:8}}>
             <MF label={L.typeBien}>
               <select value={meta.type} onChange={e=>setM("type",e.target.value)}
@@ -945,7 +1169,7 @@ function ImmoHub(){
           </div>
           <div style={{fontSize:11,color:C.muted,letterSpacing:1,marginBottom:10}}>{L.equipements}</div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>
-            {L.equip.map(([k,label])=>(
+            {[...L.equip,["cellier","📦 Cellier"],["buanderie","🫧 Buanderie"]].map(([k,label])=>(
               <label key={k} style={{display:"flex",alignItems:"center",gap:8,
                 fontSize:13,color:meta[k]?C.text:"#555",cursor:"pointer",padding:"4px 0"}}>
                 <input type="checkbox" checked={!!meta[k]} onChange={e=>setM(k,e.target.checked)}/>
@@ -1343,13 +1567,16 @@ function ImmoHub(){
           <div style={{animation:"fadeUp 0.4s ease"}}>
             <Card>
               <ST color={C.gold}>{L.paysPlatform}</ST>
-              {/* Sélecteur pays plateformes */}
+              {/* Sélecteur pays plateformes — auto-langue */}
               <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
                 {Object.entries(COUNTRIES).map(([k,v])=>(
-                  <button key={k} onClick={()=>{setPC(k);setPlat(PLATFORMS[k][0].id);}}
+                  <button key={k} onClick={()=>changePlatCountry(k)}
                     style={{padding:"6px 12px",borderRadius:7,fontSize:11,fontWeight:600,
                       background:platCountry===k?C.acc:C.surf,color:platCountry===k?"#fff":"#666",
-                      border:`1px solid ${platCountry===k?C.acc:C.brd}`}}>{v}</button>
+                      border:`1px solid ${platCountry===k?C.acc:C.brd}`}}>
+                    {v}
+                    {annonces[PLATFORM_LANG[k]]&&<span style={{color:C.green,marginLeft:4}}>✓</span>}
+                  </button>
                 ))}
               </div>
               {/* Sélecteur plateforme */}
@@ -1426,7 +1653,7 @@ function ImmoHub(){
                         </div>
                       )}
                       <div style={{display:"flex",gap:10,flexWrap:"wrap",fontSize:12,color:"#888",marginBottom:14}}>
-                        {L.equip.filter(([k])=>meta[k]).map(([k,label])=><span key={k}>{label}</span>)}
+                        {[...L.equip,["cellier","📦 Cellier"],["buanderie","🫧 Buanderie"]].filter(([k])=>meta[k]).map(([k,label])=><span key={k}>{label}</span>)}
                       </div>
                       {/* Mentions légales */}
                       <div style={{fontSize:10,color:"#AAA",lineHeight:1.6,padding:"10px 12px",
@@ -1434,9 +1661,23 @@ function ImmoHub(){
                         <div style={{fontWeight:700,marginBottom:4,fontSize:11}}>{L.mentions}</div>
                         {LEGAL[meta.pays]||LEGAL.fr}
                       </div>
+                      {/* Profil agence */}
+                      {profil.nomAgence&&(
+                        <div style={{padding:"12px 14px",background:"#F0F0F8",borderRadius:8,
+                          marginBottom:14,borderLeft:`3px solid ${p.color}`}}>
+                          <div style={{fontWeight:700,fontSize:13,color:"#1A1A1A",marginBottom:4}}>
+                            🏢 {profil.nomAgence}
+                          </div>
+                          {profil.nomAgent&&<div style={{fontSize:12,color:"#555"}}>👤 {profil.nomAgent}</div>}
+                          {profil.telephone&&<div style={{fontSize:12,color:"#555"}}>📞 {profil.telephone}</div>}
+                          {profil.email&&<div style={{fontSize:12,color:"#555"}}>📧 {profil.email}</div>}
+                          {profil.siteWeb&&<div style={{fontSize:12,color:p.color}}>{profil.siteWeb}</div>}
+                          {profil.slogan&&<div style={{fontSize:11,color:"#888",fontStyle:"italic",marginTop:4}}>{profil.slogan}</div>}
+                        </div>
+                      )}
                       <div style={{display:"inline-block",padding:"12px 24px",
                         background:p.color,color:"#fff",borderRadius:8,fontSize:13,fontWeight:700}}>
-                        📞 Contacter
+                        📞 {profil.telephone||"Contacter"}
                       </div>
                     </div>
                   </div>
