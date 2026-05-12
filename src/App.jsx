@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 
 // ══════════════════════════════════════════════════════
-// ZYMMO v1 — AI · Vision · Immobilier
+// ZAYMMO v1 — AI · Vision · Immobilier
 // Drone Logo · Multi-langue · Multi-pays · Profil Pro
 // ══════════════════════════════════════════════════════
 
@@ -256,26 +256,35 @@ const sPrompt = (analyses, meta) => {
 {"surface_totale_estimee":<n>,"nb_pieces":<n>,"nb_chambres":<n>,"etat_global":"<état>","score_global":<1-10>,"style_dominant":"<style>","dpe_estime":"<A-G>","points_forts":["top5"],"points_faibles":["défauts"],"defauts_critiques":["bloquants"],"travaux_urgents":["urgents"],"travaux_valorisants":["valorisants"],"budget_travaux_estime":"<fourchette>","suggestions_retouche_globales":["retouches"],"profil_acheteur":"<profil>","fourchette_prix_basse":<n>,"fourchette_prix_haute":<n>,"conseil_mise_en_vente":"2 phrases","pense_betes":["notes visites et négociations"]}`;
 };
 
-const aPrompt = (synth, meta, lang, profil={}) => {
-  const dev = CURRENCIES[meta.devise]||"€";
-  const prix = meta.prix ? `${Number(meta.prix).toLocaleString()} ${dev}`
-    : synth.fourchette_prix_basse ? `${synth.fourchette_prix_basse.toLocaleString()}–${synth.fourchette_prix_haute.toLocaleString()} ${dev}`
-    : "Prix sur demande";
-  const langName = {fr:"français",en:"anglais/English",de:"allemand/Deutsch",lu:"luxembourgeois",nl:"néerlandais/Nederlands"}[lang]||"français";
-  const countryCtx = {fr:"marché immobilier français",de:"deutschen Immobilienmarkt",be:"marché immobilier belge",lu:"Luxemburger Immobilienmarkt",gb:"UK property market"}[meta.pays]||"marché immobilier";
-  const profilInfo = profil.nomAgence ? `AGENCE: ${profil.nomAgence}${profil.nomAgent?` | Agent: ${profil.nomAgent}`:""}${profil.telephone?` | Tél: ${profil.telephone}`:""}${profil.email?` | Email: ${profil.email}`:""}` : "";
+const LANG_INSTRUCTIONS = {
+  fr: "Redige TOUT en francais. UNIQUEMENT en francais.",
+  en: "Write EVERYTHING in English. ONLY English. No French words at all.",
+  de: "Schreibe ALLES auf Deutsch. NUR DEUTSCH. Kein Franzoesisch.",
+  lu: "Schreif ALLES op Letzebuergesch. NUR LETZEBUERGESCH. Beispiller: Haus, Wunnung, Schlofzummer, Kichen, Gaart, Terrass, Prais, Zommer. Kee Franzoesisch, keen Daitsch.",
+  nl: "Schrijf ALLES in het Nederlands. ALLEEN NEDERLANDS. Geen Frans.",
+};
 
-  return `Rédige une annonce immobilière professionnelle ENTIÈREMENT EN ${langName.toUpperCase()} pour le ${countryCtx}.
-BIEN: ${meta.type} ${synth.surface_totale_estimee||meta.surface}m² à ${meta.ville||"NC"}
-ÉTAT: ${synth.etat_global} — ${synth.score_global}/10
+const aPrompt = (synth, meta, lang, profil={}) => {
+  const dev = CURRENCIES[meta.devise]||"euro";
+  const prix = meta.prix ? `${Number(meta.prix).toLocaleString()} ${dev}`
+    : synth.fourchette_prix_basse ? `${synth.fourchette_prix_basse.toLocaleString()}-${synth.fourchette_prix_haute.toLocaleString()} ${dev}`
+    : "Prix sur demande";
+  const instruction = LANG_INSTRUCTIONS[lang]||LANG_INSTRUCTIONS.fr;
+  const countryCtx = {fr:"France",de:"Deutschland",be:"Belgique/Belgie",lu:"Letzebuerg/Luxembourg",gb:"United Kingdom"}[meta.pays]||"France";
+  const profilInfo = profil?.nomAgence ? `AGENCE: ${profil.nomAgence}${profil.nomAgent?" | Agent: "+profil.nomAgent:""}${profil.telephone?" | Tel: "+profil.telephone:""}` : "";
+
+  return instruction + `
+
+BIEN: ${meta.type} ${synth.surface_totale_estimee||meta.surface}m2 - ${meta.ville||"NC"} (${countryCtx})
+ETAT: ${synth.etat_global} - ${synth.score_global}/10
 DPE: ${["A","B","C","D","E","F","G"].includes(meta.dpe)?meta.dpe:synth.dpe_estime||"NC"} | GES: ${["A","B","C","D","E","F","G"].includes(meta.ges)?meta.ges:"NC"}
 PRIX: ${prix} | CHAUFFAGE: ${meta.chauffage}
 ATOUTS: ${(synth.points_forts||[]).join(", ")}
-ÉQUIPEMENTS: ${["cave","parking","terrasse","balcon","jardin","ascenseur","piscine","cellier","buanderie"].filter(k=>meta[k]).join(", ")||"standard"}
+EQUIPEMENTS: ${["cave","parking","terrasse","balcon","jardin","ascenseur","piscine","cellier","buanderie"].filter(k=>meta[k]).join(", ")||"standard"}
 ${profilInfo}
-Adapte le style et la terminologie au pays: ${COUNTRIES[meta.pays]||"France"}.
-JSON:
-{"titre_principal":"≤80 chars","titre_court":"≤60 chars","description_courte":"150 mots","description_longue":"300 mots","points_cles":["5 points"],"tags":["SEO"],"avertissement_dpe":${["F","G"].includes(meta.dpe)?'"⚠️ Passoire thermique / Energiearm"':"null"}}`;
+
+JSON (TOUT le texte dans la langue demandee):
+{"titre_principal":"max 80 chars","titre_court":"max 60 chars","description_courte":"150 mots","description_longue":"300 mots","points_cles":["5 points"],"tags":["SEO"],"avertissement_dpe":${["F","G"].includes(meta.dpe)?'"Passoire thermique - travaux recommandes"':"null"}}`;
 };
 
 // ── API ───────────────────────────────────────────────
@@ -478,7 +487,7 @@ function Login({onOk}){
         @keyframes orbit{from{transform:rotate(0deg) translateX(36px) rotate(0deg)}to{transform:rotate(360deg) translateX(36px) rotate(-360deg)}}
       `}</style>
       <div style={{width:"100%",maxWidth:380,animation:"fadeUp 0.5s ease"}}>
-        {/* Logo Zymmo Login */}
+        {/* Logo Zaymmo Login */}
         <div style={{textAlign:"center",marginBottom:32}}>
           <div style={{position:"relative",width:100,height:100,margin:"0 auto 20px"}}>
             {/* Maison principale */}
@@ -539,7 +548,7 @@ function Login({onOk}){
           <div style={{fontWeight:900,fontSize:30,letterSpacing:5,
             background:"linear-gradient(90deg,#7C6FFF,#4A8EFF,#4AE88A)",
             WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",
-            fontFamily:"Georgia,serif"}}>ZYMMO</div>
+            fontFamily:"Georgia,serif"}}>ZAYMMO</div>
           <div style={{fontSize:11,color:"#555",letterSpacing:4,marginTop:6,fontFamily:"system-ui"}}>
             AI · VISION · IMMOBILIER
           </div>
@@ -560,7 +569,7 @@ function Login({onOk}){
           </div>}
           <button onClick={go} style={{...btn("linear-gradient(135deg,#7C6FFF,#4AE88A)"),
             width:"100%",padding:14,fontSize:14,boxShadow:"0 4px 20px #7C6FFF40"}}>
-            Accéder à ImmoHub →
+            Accéder à Zaymmo →
           </button>
         </div>
         <div style={{textAlign:"center",marginTop:14,fontSize:11,color:"#222"}}>
@@ -577,10 +586,10 @@ function Login({onOk}){
 export default function App(){
   const [auth,setAuth]=useState(()=>sessionStorage.getItem("ih_auth")==="1");
   if(!auth)return <Login onOk={()=>setAuth(true)}/>;
-  return <ImmoHub/>;
+  return <Zaymmo/>;
 }
 
-function ImmoHub(){
+function Zaymmo(){
   const [lang,setLang]=useState("fr");
   const L=I18N[lang]||I18N.fr;
   const [step,setStep]=useState("fiche");
@@ -789,47 +798,90 @@ function ImmoHub(){
   function downloadFiche(){
     if(!synth||!annonce)return;
     const date=new Date().toLocaleDateString("fr-FR");
-    const content=[
-      `FICHE INTERNE — IMMO HUB v5`,`Générée le ${date}`,"═".repeat(50),
-      ``,`BIEN: ${meta.type} — ${meta.ville||"NC"}`,
-      `Surface: ${synth.surface_totale_estimee||meta.surface||"NC"} m²`,
-      `Pièces: ${synth.nb_pieces||meta.pieces||"NC"} dont ${synth.nb_chambres||meta.chambres||"NC"} chambres`,
-      `Étage: ${meta.etage||"NC"} | Année: ${meta.annee||"NC"}`,
-      `Prix: ${meta.prix?Number(meta.prix).toLocaleString()+" "+dev:"À définir"}`,
+    // Bug 1 fix: utiliser BOM UTF-8 pour compatibilité Windows + supprimer emojis
+    const sep1 = "=".repeat(50);
+    const sep2 = "-".repeat(30);
+    const lines=[
+      `FICHE INTERNE — ZAYMMO`,
+      `Generee le ${date}`,
+      sep1,
+      ``,
+      `BIEN: ${meta.type} — ${meta.ville||"NC"}`,
+      `Surface: ${synth.surface_totale_estimee||meta.surface||"NC"} m2`,
+      `Pieces: ${synth.nb_pieces||meta.pieces||"NC"} dont ${synth.nb_chambres||meta.chambres||"NC"} chambres`,
+      `Etage: ${meta.etage||"NC"} | Annee: ${meta.annee||"NC"}`,
+      `Prix: ${meta.prix?Number(meta.prix).toLocaleString()+" "+dev:"A definir"}`,
       `Charges: ${meta.charges||"NC"} ${dev}/mois`,
-      `DPE: ${meta.dpe} | Chauffage: ${meta.chauffage} | Exposition: ${meta.exposition}`,
-      ``,`ÉQUIPEMENTS`,"─".repeat(30),
-      ...L.equip.filter(([k])=>meta[k]).map(([,l])=>`• ${l}`),
-      ``,`ÉVALUATION IA`,"─".repeat(30),
+      `DPE: ${meta.dpe} | GES: ${meta.ges||"NC"} | Chauffage: ${meta.chauffage} | Exposition: ${meta.exposition}`,
+      ``,
+      // Profil agence
+      ...(profil.nomAgence?[
+        `AGENCE`,sep2,
+        `Agence: ${profil.nomAgence}`,
+        `Agent: ${profil.nomAgent||"NC"}`,
+        `Tel: ${profil.telephone||"NC"}`,
+        `Email: ${profil.email||"NC"}`,
+        `Site: ${profil.siteWeb||"NC"}`,
+        ``,
+      ]:[]),
+      `EQUIPEMENTS`,sep2,
+      ...L.equip.filter(([k])=>meta[k]).map(([,l])=>`- ${l.replace(/[^\x20-\x7E\u00C0-\u024F]/g,"")}`),
+      ...(meta.cellier?["- Cellier"]:[]),
+      ...(meta.buanderie?["- Buanderie"]:[]),
+      ``,
+      `EVALUATION IA`,sep2,
       `Score: ${synth.score_global}/10 — ${synth.etat_global}`,
       `Profil acheteur: ${synth.profil_acheteur||"NC"}`,
-      synth.fourchette_prix_basse?`Estimation: ${synth.fourchette_prix_basse.toLocaleString()}–${synth.fourchette_prix_haute.toLocaleString()} ${dev}`:`Estimation: NC`,
+      `Style: ${synth.style_dominant||"NC"}`,
+      synth.fourchette_prix_basse
+        ?`Estimation: ${synth.fourchette_prix_basse.toLocaleString()} – ${synth.fourchette_prix_haute.toLocaleString()} ${dev}`
+        :`Estimation: NC`,
       `Budget travaux: ${synth.budget_travaux_estime||"NC"}`,
-      ``,`POINTS FORTS`,"─".repeat(30),
-      ...(synth.points_forts||[]).map(p=>`✓ ${p}`),
-      ``,`DÉFAUTS`,"─".repeat(30),
-      ...(synth.points_faibles||[]).map(p=>`⚠ ${p}`),
-      ...(synth.defauts_critiques||[]).map(p=>`🔴 ${p}`),
-      ``,`TRAVAUX`,"─".repeat(30),
-      ...(synth.travaux_urgents||[]).map(t=>`🔧 ${t}`),
-      ...(synth.travaux_valorisants||[]).map(t=>`📈 ${t}`),
-      ``,`HOME STAGING`,"─".repeat(30),
-      ...(synth.suggestions_retouche_globales||[]).map(s=>`• ${s}`),
-      ``,`CONSEIL EXPERT`,"─".repeat(30),
+      ``,
+      `POINTS FORTS`,sep2,
+      ...(synth.points_forts||[]).map(p=>`+ ${p}`),
+      ``,
+      `DEFAUTS`,sep2,
+      ...(synth.points_faibles||[]).map(p=>`! ${p}`),
+      ...(synth.defauts_critiques||[]).map(p=>`!! ${p} [CRITIQUE]`),
+      ``,
+      `TRAVAUX RECOMMANDES`,sep2,
+      `Urgents:`,
+      ...(synth.travaux_urgents||[]).map(t=>`  - ${t}`),
+      `Valorisants:`,
+      ...(synth.travaux_valorisants||[]).map(t=>`  - ${t}`),
+      ``,
+      `HOME STAGING`,sep2,
+      ...(synth.suggestions_retouche_globales||[]).map(s=>`- ${s}`),
+      ``,
+      `CONSEIL EXPERT`,sep2,
       synth.conseil_mise_en_vente||"NC",
-      ``,`PENSE-BÊTES VISITES`,"─".repeat(30),
+      ``,
+      `PENSE-BETES VISITES`,sep2,
       ...(synth.pense_betes||[]).map((p,i)=>`${i+1}. ${p}`),
-      ``,`ANNONCE RÉDIGÉE`,"─".repeat(30),
-      `TITRE: ${annonce.titre_principal||"NC"}`,``,annonce.description_longue||"NC",
-      ``,`═`.repeat(50),`MENTIONS LÉGALES — ${COUNTRIES[meta.pays]||"FR"}`,
-      "─".repeat(30),LEGAL[meta.pays]||LEGAL.fr,
-      ``,`═`.repeat(50),`ImmoHub v5 — Usage interne uniquement — ${date}`,
-    ].join("\n");
+      ``,
+      `ANNONCE REDIGEE`,sep2,
+      `Titre: ${annonce.titre_principal||"NC"}`,
+      ``,
+      annonce.description_longue||"NC",
+      ``,
+      sep1,
+      `MENTIONS LEGALES — ${(COUNTRIES[meta.pays]||"France").replace(/[^\x20-\x7E\u00C0-\u024F]/g,"")}`,
+      sep2,
+      (LEGAL[meta.pays]||LEGAL.fr),
+      ``,
+      sep1,
+      `Zaymmo — AI Vision Immobilier — Usage interne uniquement — ${date}`,
+    ];
+    // BOM UTF-8 pour compatibilité Windows/Android
+    const content = "\uFEFF" + lines.join("\r\n");
     const blob=new Blob([content],{type:"text/plain;charset=utf-8"});
     const url=URL.createObjectURL(blob);
     const a=document.createElement("a");
-    a.href=url;a.download=`ImmoHub_Fiche_${meta.ville||"bien"}_${date.replace(/\//g,"-")}.txt`;
-    a.click();URL.revokeObjectURL(url);
+    a.href=url;
+    a.download=`Zaymmo_Fiche_${(meta.ville||"bien").replace(/\s/g,"_")}_${date.replace(/\//g,"-")}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   const currPlats=PLATFORMS[platCountry]||PLATFORMS.fr;
@@ -890,7 +942,7 @@ function ImmoHub(){
         flexShrink:0,display:"flex",alignItems:"center",justifyContent:"space-between",
         gap:8,flexWrap:"wrap"}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          {/* LOGO ZYMMO — Maison + Drone flottant */}
+          {/* LOGO ZAYMMO — Maison + Drone flottant */}
           <div style={{display:"flex",alignItems:"center",gap:10}}>
             <div style={{position:"relative",width:42,height:42,flexShrink:0}}>
               <svg width="42" height="42" viewBox="0 0 44 44"
@@ -935,7 +987,7 @@ function ImmoHub(){
               <div style={{fontWeight:900,fontSize:17,letterSpacing:3,
                 background:"linear-gradient(90deg,#7C6FFF,#4AE88A)",
                 WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",
-                fontFamily:"Georgia,serif"}}>ZYMMO</div>
+                fontFamily:"Georgia,serif"}}>ZAYMMO</div>
               <div style={{fontSize:8,color:"#444",letterSpacing:2}}>AI · VISION · IMMOBILIER</div>
             </div>
           </div>
@@ -988,7 +1040,7 @@ function ImmoHub(){
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:10}}>
             {[
-              ["nomAgence","🏢 Nom de l'agence","ImmoHub Conseil"],
+              ["nomAgence","🏢 Nom de l'agence","Zaymmo Conseil"],
               ["nomAgent","👤 Nom de l'agent","Jean Dupont"],
               ["telephone","📞 Téléphone","+352 123 456 789"],
               ["email","📧 Email","contact@immohub.lu"],
@@ -1799,4 +1851,4 @@ function ImmoHub(){
   );
 }
 
-// ImmoHub v5 — fin
+// Zaymmo v1 — fin
