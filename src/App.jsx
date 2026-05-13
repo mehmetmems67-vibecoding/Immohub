@@ -1,13 +1,55 @@
 import { useState, useRef, useEffect } from "react";
 
 // ══════════════════════════════════════════════════════
-// ZAYMMO v1 — AI · Vision · Immobilier
-// Drone Logo · Multi-langue · Multi-pays · Profil Pro
+// ZAYMMO v3 — AI · Vision · Immobilier
+// Historique · Comptes · Fiches imprimables
 // ══════════════════════════════════════════════════════
 
 const APP_PASSWORD = import.meta.env.VITE_APP_PASSWORD || "imoimoimoiaia";
 const API_KEY      = import.meta.env.VITE_ANTHROPIC_KEY || "";
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
+
+// ── SYSTÈME DE COMPTES (localStorage) ────────────────
+const STORAGE_KEY = "zaymmo_users";
+const HISTORY_KEY = "zaymmo_history";
+const SESSION_KEY = "zaymmo_session";
+
+function getUsers() {
+  try {
+    const data = localStorage.getItem(STORAGE_KEY);
+    if (!data) {
+      // Créer compte admin par défaut
+      const admin = { id:"admin", name:"Admin", role:"admin", password: APP_PASSWORD, createdAt: new Date().toISOString() };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([admin]));
+      return [admin];
+    }
+    return JSON.parse(data);
+  } catch { return []; }
+}
+
+function saveUsers(users) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(users)); } catch {}
+}
+
+function getHistory() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY)||"[]"); } catch { return []; }
+}
+
+function saveHistory(history) {
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0,50))); } catch {} // max 50
+}
+
+function getSession() {
+  try { return JSON.parse(sessionStorage.getItem(SESSION_KEY)||"null"); } catch { return null; }
+}
+
+function saveSession(user) {
+  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(user)); } catch {}
+}
+
+function clearSession() {
+  try { sessionStorage.removeItem(SESSION_KEY); sessionStorage.removeItem("zaymmo_auth"); } catch {}
+}
 
 // ── TRADUCTIONS ───────────────────────────────────────
 const I18N = {
@@ -257,34 +299,56 @@ const sPrompt = (analyses, meta) => {
 };
 
 const LANG_INSTRUCTIONS = {
-  fr: "Redige TOUT en francais. UNIQUEMENT en francais.",
-  en: "Write EVERYTHING in English. ONLY English. No French words at all.",
-  de: "Schreibe ALLES auf Deutsch. NUR DEUTSCH. Kein Franzoesisch.",
-  lu: "Schreif ALLES op Letzebuergesch. NUR LETZEBUERGESCH. Beispiller: Haus, Wunnung, Schlofzummer, Kichen, Gaart, Terrass, Prais, Zommer. Kee Franzoesisch, keen Daitsch.",
-  nl: "Schrijf ALLES in het Nederlands. ALLEEN NEDERLANDS. Geen Frans.",
+  fr: "Tu es un rédacteur immobilier expert. Rédige TOUT en français uniquement. Aucun mot dans une autre langue.",
+  en: "You are an expert real estate copywriter. Write EVERYTHING in English only. No French, no German. Full paragraphs, rich vocabulary.",
+  de: "Du bist ein Immobilien-Texter. Schreibe ALLES auf Deutsch. Kein Französisch, kein Englisch. Vollständige Absätze, reichhaltig.",
+  lu: "Dir sidd en Immobilien-Texter. Schreift ALLES op Lëtzebuergesch. Kee Franséisch, keen Daitsch. Lëtzebuergesch Wierder: Haus, Wunnung, Schlofzëmmer, Kichen, Gaart, Terrass, Präis, Zëmmer, Hell, Grouss, Schéin, Roueg. Vollstänneg Absätz.",
+  nl: "U bent een vastgoed-copywriter. Schrijf ALLES in het Nederlands (Belgisch). Geen Frans, geen Duits. Volledige paragrafen, rijke woordenschat.",
 };
 
-const aPrompt = (synth, meta, lang, profil={}) => {
+// Bug A+B fix: longueur explicite + langue stricte + constatations IA optionnelles
+const aPrompt = (synth, meta, lang, profil={}, includeAI=false) => {
   const dev = CURRENCIES[meta.devise]||"euro";
-  const prix = meta.prix ? `${Number(meta.prix).toLocaleString()} ${dev}`
-    : synth.fourchette_prix_basse ? `${synth.fourchette_prix_basse.toLocaleString()}-${synth.fourchette_prix_haute.toLocaleString()} ${dev}`
-    : "Prix sur demande";
+  const prix = meta.prix
+    ? `${Number(meta.prix).toLocaleString()} ${dev}`
+    : synth.fourchette_prix_basse
+      ? `${synth.fourchette_prix_basse.toLocaleString()}-${synth.fourchette_prix_haute.toLocaleString()} ${dev}`
+      : "Prix sur demande";
+
   const instruction = LANG_INSTRUCTIONS[lang]||LANG_INSTRUCTIONS.fr;
   const countryCtx = {fr:"France",de:"Deutschland",be:"Belgique/Belgie",lu:"Letzebuerg/Luxembourg",gb:"United Kingdom"}[meta.pays]||"France";
-  const profilInfo = profil?.nomAgence ? `AGENCE: ${profil.nomAgence}${profil.nomAgent?" | Agent: "+profil.nomAgent:""}${profil.telephone?" | Tel: "+profil.telephone:""}` : "";
+  const profilInfo = profil?.nomAgence
+    ? `AGENCE: ${profil.nomAgence}${profil.nomAgent?" | Agent: "+profil.nomAgent:""}${profil.telephone?" | Tel: "+profil.telephone":""}`
+    : "";
+  const terrainInfo = meta.terrain ? `Terrain: ${meta.terrain}m2` : "";
 
-  return instruction + `
+  // Constatations IA photos — incluses seulement si case cochée
+  const aiFindings = includeAI && synth ? `
+OBSERVATIONS PHOTOS (a integrer subtilement):
+- Etat observe: ${synth.etat_global||"NC"}
+- Points forts visuels: ${(synth.points_forts||[]).slice(0,3).join(", ")}
+- Style: ${synth.style_dominant||"NC"}` : "";
 
-BIEN: ${meta.type} ${synth.surface_totale_estimee||meta.surface}m2 - ${meta.ville||"NC"} (${countryCtx})
-ETAT: ${synth.etat_global} - ${synth.score_global}/10
+  // Longueur explicite en nombre de mots pour chaque champ
+  return `${instruction}
+
+BIEN: ${meta.type} ${synth.surface_totale_estimee||meta.surface}m2${terrainInfo?` (${terrainInfo})`:""} - ${meta.ville||"NC"} (${countryCtx})
 DPE: ${["A","B","C","D","E","F","G"].includes(meta.dpe)?meta.dpe:synth.dpe_estime||"NC"} | GES: ${["A","B","C","D","E","F","G"].includes(meta.ges)?meta.ges:"NC"}
-PRIX: ${prix} | CHAUFFAGE: ${meta.chauffage}
+PRIX: ${prix} | CHAUFFAGE: ${meta.chauffage} | EXPOSITION: ${meta.exposition||"NC"}
 ATOUTS: ${(synth.points_forts||[]).join(", ")}
 EQUIPEMENTS: ${["cave","parking","terrasse","balcon","jardin","ascenseur","piscine","cellier","buanderie"].filter(k=>meta[k]).join(", ")||"standard"}
-${profilInfo}
+${terrainInfo}
+${profilInfo}${aiFindings}
 
-JSON (TOUT le texte dans la langue demandee):
-{"titre_principal":"max 80 chars","titre_court":"max 60 chars","description_courte":"150 mots","description_longue":"300 mots","points_cles":["5 points"],"tags":["SEO"],"avertissement_dpe":${["F","G"].includes(meta.dpe)?'"Passoire thermique - travaux recommandes"':"null"}}`;
+INSTRUCTIONS STRICTES:
+- description_courte: exactement 120-150 mots, 2 paragraphes complets
+- description_longue: exactement 280-320 mots, 4 paragraphes complets
+- Chaque paragraphe = minimum 3 phrases
+- Langue: ${instruction.split(".")[0]}
+- Style: professionnel, valorisant, sans mentionner les defauts
+
+JSON:
+{"titre_principal":"max 80 chars","titre_court":"max 60 chars","description_courte":"120-150 mots en 2 paragraphes","description_longue":"280-320 mots en 4 paragraphes","points_cles":["5 points concis"],"tags":["mots-cles SEO"],"avertissement_dpe":${["F","G"].includes(meta.dpe)?'"Passoire thermique - travaux energetiques recommandes"':"null"}}`;
 };
 
 // ── API ───────────────────────────────────────────────
@@ -465,15 +529,26 @@ function Steps({current,L}){
 }
 
 // ══════════════════════════════════════════════════════
-// LOGIN
+// LOGIN — avec système de comptes
 // ══════════════════════════════════════════════════════
 function Login({onOk}){
   const [pwd,setPwd]=useState(""),[err,setErr]=useState(false),[shake,setShake]=useState(false);
+  const [users]=useState(()=>getUsers());
   const ref=useRef(null);
   useEffect(()=>{ref.current?.focus();},[]);
+
   function go(){
-    if(pwd===APP_PASSWORD){sessionStorage.setItem("ih_auth","1");onOk();}
-    else{setErr(true);setShake(true);setPwd("");setTimeout(()=>setShake(false),600);setTimeout(()=>setErr(false),2500);}
+    // Vérifier dans la liste des utilisateurs
+    const user = users.find(u=>u.password===pwd);
+    if(user){
+      sessionStorage.setItem("zaymmo_auth","1");
+      saveSession(user);
+      onOk(user);
+    } else {
+      setErr(true);setShake(true);setPwd("");
+      setTimeout(()=>setShake(false),600);
+      setTimeout(()=>setErr(false),2500);
+    }
   }
   return(
     <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",
@@ -481,10 +556,9 @@ function Login({onOk}){
       <style>{`
         @keyframes shake{0%,100%{transform:translateX(0)}25%,75%{transform:translateX(-8px)}50%{transform:translateX(8px)}}
         @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
-        @keyframes floatDrone{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-8px) rotate(3deg)}}
+        @keyframes floatDrone{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-5px) rotate(2deg)}}
         @keyframes glowLogo{0%,100%{filter:drop-shadow(0 0 10px #7C6FFF40)}50%{filter:drop-shadow(0 0 24px #7C6FFF80)}}
         @keyframes blink{0%,100%{opacity:1}50%{opacity:0.1}}
-        @keyframes orbit{from{transform:rotate(0deg) translateX(36px) rotate(0deg)}to{transform:rotate(360deg) translateX(36px) rotate(-360deg)}}
       `}</style>
       <div style={{width:"100%",maxWidth:380,animation:"fadeUp 0.5s ease"}}>
         {/* Logo Zaymmo Login */}
@@ -526,11 +600,10 @@ function Login({onOk}){
               {/* Orbite drone */}
               <ellipse cx="50" cy="40" rx="30" ry="10" fill="none" stroke="#4AE88A" strokeWidth="0.8" strokeDasharray="4,4" opacity="0.3"/>
             </svg>
-            {/* Drone en orbite */}
-            <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",
-              width:0,height:0,animation:"orbit 4s linear infinite"}}>
-              <svg width="22" height="16" viewBox="0 0 22 16"
-                style={{position:"absolute",top:-8,left:0}}>
+            {/* Drone flottant doucement — pas d'orbite */}
+            <div style={{position:"absolute",top:8,right:4,
+              animation:"floatDrone 3s ease-in-out infinite"}}>
+              <svg width="26" height="20" viewBox="0 0 22 16">
                 <rect x="6" y="4" width="10" height="8" rx="2.5" fill="#00F5FF" opacity="0.95"/>
                 <line x1="2" y1="5" x2="7" y2="7" stroke="#00F5FF" strokeWidth="1.2"/>
                 <line x1="15" y1="7" x2="20" y2="5" stroke="#00F5FF" strokeWidth="1.2"/>
@@ -584,12 +657,15 @@ function Login({onOk}){
 // APP
 // ══════════════════════════════════════════════════════
 export default function App(){
-  const [auth,setAuth]=useState(()=>sessionStorage.getItem("ih_auth")==="1");
-  if(!auth)return <Login onOk={()=>setAuth(true)}/>;
-  return <Zaymmo/>;
+  const [auth,setAuth]=useState(()=>sessionStorage.getItem("zaymmo_auth")==="1");
+  const [currentUser,setCurrentUser]=useState(()=>getSession());
+  function handleLogin(user){setCurrentUser(user);setAuth(true);}
+  if(!auth)return <Login onOk={handleLogin}/>;
+  return <Zaymmo currentUser={currentUser} onLogout={()=>{clearSession();setAuth(false);setCurrentUser(null);}}/>;
 }
 
-function Zaymmo(){
+function Zaymmo({currentUser, onLogout}){
+  const isAdmin = currentUser?.role==="admin";
   const [lang,setLang]=useState("fr");
   const L=I18N[lang]||I18N.fr;
   const [step,setStep]=useState("fiche");
@@ -605,6 +681,14 @@ function Zaymmo(){
   const [error,setError]=useState(null);
   const [platCountry,setPC]=useState("fr");
   const [platform,setPlat]=useState("seloger");
+  // Vues admin
+  const [showAdmin,setShowAdmin]=useState(false);
+  const [showHistory,setShowHistory]=useState(false);
+  const [history,setHistory]=useState(()=>getHistory());
+  // Gestion utilisateurs (admin)
+  const [users,setUsers]=useState(()=>getUsers());
+  const [newUserName,setNewUserName]=useState("");
+  const [newUserPwd,setNewUserPwd]=useState("");
   const [copied,setCopied]=useState(false);
   const [revMode,setRevMode]=useState(false);
   const [revInstr,setRevInstr]=useState("");
@@ -612,8 +696,11 @@ function Zaymmo(){
   // Multi-langue annonces
   const [multiLangMode,setMultiLangMode]=useState(false);
   const [selectedLangs,setSelectedLangs]=useState({fr:true,en:false,de:false,lu:false,nl:false});
-  const [annonces,setAnnonces]=useState({}); // {fr:{...}, de:{...}, etc}
-  const [activeLang,setActiveLang]=useState("fr"); // onglet actif
+  const [annonces,setAnnonces]=useState({});
+  const [activeLang,setActiveLang]=useState("fr");
+  // Case à cocher — inclure constatations IA photos dans l'annonce
+  const [includeAIFindings,setIncludeAIFindings]=useState(false);
+
   const fileRef=useRef(null),mountedRef=useRef(true);
   useEffect(()=>{mountedRef.current=true;return()=>{mountedRef.current=false;};},[]);
 
@@ -621,6 +708,7 @@ function Zaymmo(){
     // PAYS EN PREMIER
     pays:"fr",
     type:"Appartement",adresse:"",ville:"",surface:"",pieces:"",chambres:"",
+    terrain:"", // m² de terrain (maisons, villas...)
     etage:"",annee:"",prix:"",charges:"",
     dpe:"Non renseigné",ges:"Non renseigné",
     chauffage:"Collectif gaz",exposition:"Non renseignée",
@@ -715,7 +803,26 @@ function Zaymmo(){
         try{
           const s=await callClaude([{role:"user",content:sPrompt(results,meta)}],
             "Expert immobilier. JSON valide uniquement sans backticks.");
-          if(mountedRef.current){setSynth(s);setProg(100);}
+          if(mountedRef.current){
+            setSynth(s);setProg(100);
+            // Sauvegarder dans l'historique
+            const entry = {
+              id: Date.now().toString(),
+              date: new Date().toISOString(),
+              user: currentUser?.name||"Inconnu",
+              ville: meta.ville||"NC",
+              type: meta.type,
+              surface: synth?.surface_totale_estimee||meta.surface||"NC",
+              prix: meta.prix||null,
+              score: s.score_global||null,
+              etat: s.etat_global||"NC",
+              meta: {...meta},
+              synth: s,
+            };
+            const newHistory = [entry, ...getHistory()].slice(0,50);
+            saveHistory(newHistory);
+            setHistory(newHistory);
+          }
         }catch(e){if(mountedRef.current)setError("Erreur synthèse: "+e.message);}
       } else if(results.length>0&&results.every(r=>r.error)){
         if(mountedRef.current)setError("Toutes les photos ont échoué — vérifiez votre connexion");
@@ -729,7 +836,7 @@ function Zaymmo(){
     if(!synth){setError("Lance d'abord l'analyse");return;}
     setLoading(true);setLoadMsg("Rédaction…");setStep("annonce");
     try{
-      const a=await callClaude([{role:"user",content:aPrompt(synth,meta,meta.langAnnonce,profil)}],
+      const a=await callClaude([{role:"user",content:aPrompt(synth,meta,meta.langAnnonce,profil,includeAIFindings)}],
         "Rédacteur immobilier expert. JSON valide uniquement sans backticks.",1500);
       if(mountedRef.current){
         setAnnonce(a);
@@ -754,7 +861,7 @@ function Zaymmo(){
       setLoadMsg(`${flags[lg]} Rédaction ${lg.toUpperCase()} — ${i+1}/${langs.length}`);
       try{
         const a=await callClaude(
-          [{role:"user",content:aPrompt(synth,meta,lg,profil)}],
+          [{role:"user",content:aPrompt(synth,meta,lg,profil,includeAIFindings)}],
           "Rédacteur immobilier expert. JSON valide uniquement sans backticks.",1500
         );
         results[lg]=a;
@@ -793,6 +900,229 @@ function Zaymmo(){
     catch{const ta=document.createElement("textarea");ta.value=txt;
       document.body.appendChild(ta);ta.select();document.execCommand("copy");document.body.removeChild(ta);}
     setCopied(true);setTimeout(()=>{if(mountedRef.current)setCopied(false);},2500);
+  }
+
+  // ── IMPRESSION FICHE PRO (interne) ───────────────────
+  function printPro(){
+    if(!synth||!annonce)return;
+    const dev=CURRENCIES[meta.devise]||"€";
+    const photoUrls=photos.filter(p=>p.preview).slice(0,6).map(p=>p.preview);
+    const win=window.open("","_blank");
+    win.document.write(`<!DOCTYPE html><html><head>
+<meta charset="UTF-8">
+<title>Zaymmo — Fiche Pro — ${meta.ville||"Bien"}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Arial,sans-serif;font-size:11px;color:#1A1A2E;padding:20px}
+  h1{font-size:18px;color:#7C6FFF;margin-bottom:4px}
+  h2{font-size:13px;color:#7C6FFF;margin:14px 0 6px;border-bottom:2px solid #7C6FFF;padding-bottom:3px}
+  h3{font-size:11px;color:#555;margin:8px 0 4px}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;padding-bottom:12px;border-bottom:3px solid #7C6FFF}
+  .logo{font-size:22px;font-weight:900;color:#7C6FFF;letter-spacing:3px}
+  .badge{background:#7C6FFF;color:white;padding:3px 10px;border-radius:12px;font-size:10px;font-weight:700}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px}
+  .info-block{background:#F5F5FF;border-radius:6px;padding:8px 10px;border-left:3px solid #7C6FFF}
+  .label{font-size:9px;color:#888;letter-spacing:1px;margin-bottom:2px}
+  .value{font-size:12px;font-weight:700;color:#1A1A2E}
+  .score-big{font-size:32px;font-weight:900;color:${synth.score_global>=7?"#4AE88A":synth.score_global>=5?"#E8C84A":"#E84A4A"}}
+  .plus{color:#4AE88A;margin-right:4px}
+  .minus{color:#E84A4A;margin-right:4px}
+  .warn{color:#E8C84A;margin-right:4px}
+  .photos{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px}
+  .photos img{width:100%;height:80px;object-fit:cover;border-radius:4px}
+  .note{background:#FFF8E8;border:1px solid #E8C84A;border-radius:4px;padding:6px 10px;font-size:10px;color:#555;font-style:italic}
+  .footer{margin-top:16px;padding-top:8px;border-top:1px solid #DDD;display:flex;justify-content:space-between;font-size:9px;color:#AAA}
+  ul{margin-left:16px;margin-bottom:6px}
+  li{margin-bottom:2px}
+  @media print{body{padding:10px}.no-print{display:none}}
+</style></head><body>
+<div class="header">
+  <div>
+    <div class="logo">ZAYMMO</div>
+    <div style="font-size:9px;color:#AAA;letter-spacing:2px">AI · VISION · IMMOBILIER</div>
+    <div style="margin-top:6px;font-size:10px;color:#555">
+      Analysé le ${new Date().toLocaleDateString("fr-FR")} · Par ${currentUser?.name||"Admin"}
+    </div>
+  </div>
+  <div style="text-align:right">
+    <div class="score-big">${synth.score_global||"?"}/10</div>
+    <div style="font-size:10px;color:#555">${synth.etat_global||"NC"}</div>
+    <div class="badge" style="margin-top:4px">CONFIDENTIEL — INTERNE</div>
+  </div>
+</div>
+
+${photoUrls.length>0?`<div class="photos">${photoUrls.map(u=>`<img src="${u}" alt="photo"/>`).join("")}</div>`:""}
+
+<h2>INFORMATIONS DU BIEN</h2>
+<div class="grid3">
+  <div class="info-block"><div class="label">TYPE</div><div class="value">${meta.type}</div></div>
+  <div class="info-block"><div class="label">SURFACE</div><div class="value">${synth.surface_totale_estimee||meta.surface||"NC"} m²${meta.terrain?` + ${meta.terrain}m² terrain`:""}</div></div>
+  <div class="info-block"><div class="label">PRIX</div><div class="value">${meta.prix?Number(meta.prix).toLocaleString()+" "+dev:synth.fourchette_prix_basse?synth.fourchette_prix_basse.toLocaleString()+"–"+synth.fourchette_prix_haute.toLocaleString()+" "+dev:"NC"}</div></div>
+  <div class="info-block"><div class="label">VILLE</div><div class="value">${meta.ville||"NC"}</div></div>
+  <div class="info-block"><div class="label">DPE / GES</div><div class="value">${meta.dpe} / ${meta.ges||"NC"}</div></div>
+  <div class="info-block"><div class="label">CHAUFFAGE</div><div class="value">${meta.chauffage}</div></div>
+  <div class="info-block"><div class="label">PIÈCES / CHAMBRES</div><div class="value">${meta.pieces||"NC"} / ${meta.chambres||"NC"}</div></div>
+  <div class="info-block"><div class="label">ÉTAGE</div><div class="value">${meta.etage||"NC"}</div></div>
+  <div class="info-block"><div class="label">ANNÉE</div><div class="value">${meta.annee||"NC"}</div></div>
+</div>
+
+<h2>ESTIMATION IA</h2>
+<div class="grid2">
+  <div>
+    <h3>Points forts</h3>
+    <ul>${(synth.points_forts||[]).map(p=>`<li><span class="plus">+</span>${p}</li>`).join("")}</ul>
+  </div>
+  <div>
+    <h3>Défauts détectés</h3>
+    <ul>${(synth.points_faibles||[]).map(p=>`<li><span class="minus">!</span>${p}</li>`).join("")}
+    ${(synth.defauts_critiques||[]).map(p=>`<li><span class="minus">!!</span><strong>${p}</strong> [CRITIQUE]</li>`).join("")}</ul>
+  </div>
+</div>
+
+<h2>TRAVAUX RECOMMANDÉS</h2>
+<div class="grid2">
+  <div><h3>Urgents</h3><ul>${(synth.travaux_urgents||[]).map(t=>`<li>${t}</li>`).join("")||"<li>Aucun</li>"}</ul></div>
+  <div><h3>Valorisants</h3><ul>${(synth.travaux_valorisants||[]).map(t=>`<li>${t}</li>`).join("")||"<li>Aucun</li>"}</ul></div>
+</div>
+<div class="note">Budget travaux estimé : ${synth.budget_travaux_estime||"NC"} · Profil acheteur : ${synth.profil_acheteur||"NC"}</div>
+
+<h2>PENSE-BÊTES VISITES</h2>
+<ul>${(synth.pense_betes||[]).map((p,i)=>`<li>${i+1}. ${p}</li>`).join("")||"<li>Aucun</li>"}</ul>
+
+<h2>HOME STAGING</h2>
+<ul>${(synth.suggestions_retouche_globales||[]).map(s=>`<li>${s}</li>`).join("")||"<li>Aucun</li>"}</ul>
+
+<h2>CONSEIL EXPERT</h2>
+<div class="note">${synth.conseil_mise_en_vente||"NC"}</div>
+
+<div class="footer">
+  <span>Zaymmo — Fiche interne confidentielle</span>
+  <span>${meta.ville||"NC"} · ${new Date().toLocaleDateString("fr-FR")}</span>
+  <span>Usage réservé au professionnel</span>
+</div>
+
+<div class="no-print" style="text-align:center;margin-top:20px">
+  <button onclick="window.print()" style="background:#7C6FFF;color:white;border:none;padding:12px 28px;border-radius:8px;font-size:14px;cursor:pointer">🖨️ Imprimer</button>
+</div>
+</body></html>`);
+    win.document.close();
+    setTimeout(()=>win.print(),500);
+  }
+
+  // ── IMPRESSION FICHE CLIENT (présentation visite) ───
+  function printClient(){
+    if(!annonce)return;
+    const dev=CURRENCIES[meta.devise]||"€";
+    const photoUrls=photos.filter(p=>p.preview).slice(0,3).map(p=>p.preview);
+    const win=window.open("","_blank");
+    win.document.write(`<!DOCTYPE html><html><head>
+<meta charset="UTF-8">
+<title>Zaymmo — ${annonce.titre_court||"Présentation bien"}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Arial,sans-serif;font-size:12px;color:#1A1A2E;padding:24px}
+  h1{font-size:20px;color:#1A1A2E;margin-bottom:6px;line-height:1.3}
+  h2{font-size:13px;color:#7C6FFF;margin:16px 0 8px;border-bottom:1px solid #E0E0F0;padding-bottom:4px}
+  .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding-bottom:14px;border-bottom:3px solid #7C6FFF}
+  .logo{font-size:20px;font-weight:900;color:#7C6FFF;letter-spacing:3px}
+  .prix{font-size:28px;font-weight:900;color:#7C6FFF}
+  .photos{display:grid;grid-template-columns:${photoUrls.length===1?"1fr":photoUrls.length===2?"1fr 1fr":"2fr 1fr"};gap:8px;margin-bottom:20px;height:200px}
+  .photos img{width:100%;height:100%;object-fit:cover;border-radius:6px}
+  .infos{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+  .info{background:#F5F5FF;border-radius:6px;padding:8px;text-align:center}
+  .info-label{font-size:9px;color:#AAA;letter-spacing:1px;margin-bottom:2px}
+  .info-val{font-size:13px;font-weight:700;color:#1A1A2E}
+  .dpe{display:inline-block;padding:2px 8px;border-radius:4px;color:white;font-weight:700;font-size:11px;background:${{"A":"#00A651","B":"#4CB748","C":"#BDD630","D":"#FFF200","E":"#F7941D","F":"#F15A22","G":"#ED1C24"}[meta.dpe]||"#DDD"};color:${meta.dpe==="D"?"#333":"white"}}
+  .desc{line-height:1.8;margin-bottom:14px;color:#333}
+  .tag{display:inline-block;background:#F0F0FF;color:#7C6FFF;padding:3px 10px;border-radius:12px;font-size:10px;margin:2px}
+  .contact{background:#F5F5FF;border-radius:8px;padding:14px;margin-top:16px}
+  .footer{margin-top:16px;padding-top:8px;border-top:1px solid #EEE;display:flex;justify-content:space-between;font-size:9px;color:#CCC}
+  @media print{body{padding:12px}.no-print{display:none}}
+</style></head><body>
+
+<div class="header">
+  <div>
+    <div class="logo">ZAYMMO</div>
+    <div style="font-size:9px;color:#AAA;letter-spacing:2px">AI · VISION · IMMOBILIER</div>
+  </div>
+  <div style="text-align:right">
+    <div class="prix">${meta.prix?Number(meta.prix).toLocaleString()+" "+dev:synth?.fourchette_prix_basse?synth.fourchette_prix_basse.toLocaleString()+" "+dev:"Prix sur demande"}</div>
+    ${meta.charges?`<div style="font-size:10px;color:#888">+ ${meta.charges} ${dev}/mois de charges</div>`:""}
+  </div>
+</div>
+
+<h1>${annonce.titre_principal||annonce.titre_court||"Bien immobilier"}</h1>
+<div style="color:#888;font-size:11px;margin-bottom:16px">${meta.ville||""}${meta.ville&&meta.pays?" · ":""}</div>
+
+${photoUrls.length>0?`<div class="photos">${photoUrls.map(u=>`<img src="${u}" alt="photo"/>`).join("")}</div>`:""}
+
+<div class="infos">
+  <div class="info"><div class="info-label">SURFACE</div><div class="info-val">${synth?.surface_totale_estimee||meta.surface||"NC"} m²</div></div>
+  <div class="info"><div class="info-label">PIÈCES</div><div class="info-val">${synth?.nb_pieces||meta.pieces||"NC"}</div></div>
+  <div class="info"><div class="info-label">CHAMBRES</div><div class="info-val">${synth?.nb_chambres||meta.chambres||"NC"}</div></div>
+  <div class="info"><div class="info-label">DPE</div><div class="info-val"><span class="dpe">${meta.dpe?.length===1?meta.dpe:synth?.dpe_estime||"NC"}</span></div></div>
+</div>
+
+<h2>Description</h2>
+<div class="desc">${annonce.description_longue||annonce.description_courte||"NC"}</div>
+
+${annonce.points_cles?.length>0?`<div>${annonce.points_cles.map(p=>`<span class="tag">✓ ${p}</span>`).join("")}</div>`:""}
+
+<h2>Équipements</h2>
+<div>${[...L.equip,["cellier","📦 Cellier"],["buanderie","🫧 Buanderie"]].filter(([k])=>meta[k]).map(([,l])=>`<span class="tag">${l}</span>`).join("")||"Standard"}</div>
+
+${annonce.avertissement_dpe?`<div style="background:#FFF0F0;border:1px solid #FFCCCC;border-radius:4px;padding:8px;margin-top:12px;font-size:10px;color:#CC0000">${annonce.avertissement_dpe}</div>`:""}
+
+${profil.nomAgence?`<div class="contact">
+  <div style="font-weight:700;font-size:13px;margin-bottom:6px">📞 Nous contacter</div>
+  <div style="font-weight:700;color:#7C6FFF">${profil.nomAgence}</div>
+  ${profil.nomAgent?`<div>${profil.nomAgent}</div>`:""}
+  ${profil.telephone?`<div>📞 ${profil.telephone}</div>`:""}
+  ${profil.email?`<div>📧 ${profil.email}</div>`:""}
+  ${profil.siteWeb?`<div>🌐 ${profil.siteWeb}</div>`:""}
+</div>`:""}
+
+<div class="footer">
+  <span>Zaymmo — Document de présentation</span>
+  <span>${new Date().toLocaleDateString("fr-FR")}</span>
+  <span>Informations non contractuelles</span>
+</div>
+
+<div class="no-print" style="text-align:center;margin-top:20px;display:flex;gap:10px;justify-content:center">
+  <button onclick="window.print()" style="background:#7C6FFF;color:white;border:none;padding:12px 28px;border-radius:8px;font-size:14px;cursor:pointer">🖨️ Imprimer</button>
+  <button onclick="window.close()" style="background:#EEE;color:#333;border:none;padding:12px 24px;border-radius:8px;font-size:14px;cursor:pointer">✕ Fermer</button>
+</div>
+</body></html>`);
+    win.document.close();
+    setTimeout(()=>win.print(),500);
+  }
+
+  // ── ADMIN — créer utilisateur ─────────────────────────
+  function createUser(){
+    if(!newUserName.trim()||!newUserPwd.trim())return;
+    const newUser={
+      id:Date.now().toString(),
+      name:newUserName.trim(),
+      role:"invite",
+      password:newUserPwd.trim(),
+      createdAt:new Date().toISOString(),
+    };
+    const updated=[...users,newUser];
+    saveUsers(updated);
+    setUsers(updated);
+    setNewUserName("");setNewUserPwd("");
+  }
+
+  function deleteUser(id){
+    if(id==="admin")return;
+    const updated=users.filter(u=>u.id!==id);
+    saveUsers(updated);setUsers(updated);
+  }
+
+  function deleteHistoryEntry(id){
+    const updated=history.filter(h=>h.id!==id);
+    saveHistory(updated);setHistory(updated);
   }
 
   function downloadFiche(){
@@ -909,7 +1239,7 @@ function Zaymmo(){
     setLoading(true); setLoadMsg(`Rédaction ${lg}…`);
     try {
       const a = await callClaude(
-        [{role:"user",content:aPrompt(synth,meta,lg,profil)}],
+        [{role:"user",content:aPrompt(synth,meta,lg,profil,includeAIFindings)}],
         "Rédacteur immobilier expert. JSON valide uniquement sans backticks.",1500
       );
       if (mountedRef.current) {
@@ -1008,6 +1338,25 @@ function Zaymmo(){
               {border:`1px solid ${profilOpen?C.gold:C.brd}`,fontSize:11,padding:"6px 10px"})}}>
             👤
           </button>
+          {/* Historique */}
+          <button onClick={()=>{setShowHistory(h=>!h);setShowAdmin(false);}}
+            style={{...btn(showHistory?C.acc+"20":C.surf,showHistory?C.acc:C.muted,
+              {border:`1px solid ${showHistory?C.acc:C.brd}`,fontSize:11,padding:"6px 10px"})}}>
+            📊 {history.length}
+          </button>
+          {/* Admin — seulement pour admin */}
+          {isAdmin&&(
+            <button onClick={()=>{setShowAdmin(a=>!a);setShowHistory(false);}}
+              style={{...btn(showAdmin?C.green+"20":C.surf,showAdmin?C.green:C.muted,
+                {border:`1px solid ${showAdmin?C.green:C.brd}`,fontSize:11,padding:"6px 10px"})}}>
+              ⚙️
+            </button>
+          )}
+          {/* Déconnexion */}
+          <button onClick={onLogout}
+            style={{...btn(C.surf,C.muted,{border:`1px solid ${C.brd}`,fontSize:11,padding:"6px 10px"})}}>
+            ⏻
+          </button>
           {/* Sélecteur langue interface */}
           <select value={lang} onChange={e=>setLang(e.target.value)}
             style={{background:C.surf,border:`1px solid ${C.brd}`,borderRadius:7,
@@ -1061,7 +1410,94 @@ function Zaymmo(){
         </div>
       )}
 
-      {/* STEP BAR */}
+      {/* HISTORIQUE */}
+      {showHistory&&(
+        <div style={{padding:"14px 16px",background:"#0A0A1E",
+          borderBottom:`1px solid ${C.acc}30`,animation:"fadeUp 0.2s ease",maxHeight:320,overflowY:"auto"}}>
+          <div style={{fontSize:11,color:C.acc,marginBottom:12,letterSpacing:1,fontWeight:700}}>
+            📊 HISTORIQUE DES ANALYSES ({history.length})
+          </div>
+          {history.length===0&&<div style={{fontSize:12,color:"#444"}}>Aucune analyse sauvegardée</div>}
+          {history.map(h=>(
+            <div key={h.id} style={{background:C.surf,borderRadius:8,padding:"10px 12px",
+              marginBottom:8,border:`1px solid ${C.brd}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div style={{flex:1}}>
+                <div style={{fontSize:12,fontWeight:700,color:C.text}}>
+                  {h.type} — {h.ville}
+                </div>
+                <div style={{fontSize:10,color:"#666",marginTop:2}}>
+                  {new Date(h.date).toLocaleDateString("fr-FR")} · {h.surface}m² · Score {h.score}/10
+                  {h.prix&&` · ${Number(h.prix).toLocaleString()} ${CURRENCIES[h.meta?.devise]||"€"}`}
+                </div>
+                <div style={{fontSize:10,color:"#555"}}>Par {h.user}</div>
+              </div>
+              <div style={{display:"flex",gap:6}}>
+                <button onClick={()=>{
+                  setMeta(h.meta);setSynth(h.synth);
+                  setStep("analyse");setShowHistory(false);
+                }} style={{fontSize:10,padding:"4px 8px",borderRadius:6,
+                  background:C.acc+"20",color:C.acc,border:`1px solid ${C.acc}40`}}>
+                  ↩ Rouvrir
+                </button>
+                {isAdmin&&<button onClick={()=>deleteHistoryEntry(h.id)}
+                  style={{fontSize:10,padding:"4px 8px",borderRadius:6,
+                    background:"transparent",color:C.err,border:"none"}}>✕</button>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ADMIN — Gestion utilisateurs */}
+      {showAdmin&&isAdmin&&(
+        <div style={{padding:"14px 16px",background:"#0A1A0A",
+          borderBottom:`1px solid ${C.green}30`,animation:"fadeUp 0.2s ease"}}>
+          <div style={{fontSize:11,color:C.green,marginBottom:12,letterSpacing:1,fontWeight:700}}>
+            ⚙️ GESTION UTILISATEURS
+          </div>
+          {/* Liste utilisateurs */}
+          <div style={{marginBottom:12}}>
+            {users.map(u=>(
+              <div key={u.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+                padding:"8px 10px",background:C.surf,borderRadius:7,marginBottom:6,
+                border:`1px solid ${u.role==="admin"?C.gold+"40":C.brd}`}}>
+                <div>
+                  <span style={{fontSize:12,fontWeight:700,color:u.role==="admin"?C.gold:C.text}}>
+                    {u.name}
+                  </span>
+                  <span style={{fontSize:10,color:"#555",marginLeft:8}}>
+                    {u.role==="admin"?"👑 Admin":"👤 Invité"}
+                  </span>
+                  <span style={{fontSize:10,color:"#333",marginLeft:8}}>
+                    MDP: {u.password}
+                  </span>
+                </div>
+                {u.id!=="admin"&&(
+                  <button onClick={()=>deleteUser(u.id)}
+                    style={{fontSize:11,color:C.err,background:"transparent",border:"none",cursor:"pointer"}}>
+                    ✕ Supprimer
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+          {/* Créer utilisateur */}
+          <div style={{fontSize:10,color:C.green,marginBottom:8,letterSpacing:1}}>CRÉER UN INVITÉ</div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            <input value={newUserName} onChange={e=>setNewUserName(e.target.value)}
+              placeholder="Nom de l'agent"
+              style={{...inp,flex:1,minWidth:120,fontSize:12,padding:"8px 10px"}}/>
+            <input value={newUserPwd} onChange={e=>setNewUserPwd(e.target.value)}
+              placeholder="Mot de passe"
+              style={{...inp,flex:1,minWidth:100,fontSize:12,padding:"8px 10px"}}/>
+            <button onClick={createUser} disabled={!newUserName.trim()||!newUserPwd.trim()}
+              style={{...btn(C.green,"#fff"),fontSize:12,padding:"8px 16px",
+                opacity:(!newUserName.trim()||!newUserPwd.trim())?0.5:1}}>
+              + Créer
+            </button>
+          </div>
+        </div>
+      )}
       <div style={{padding:"10px 16px",background:"#060610",
         borderBottom:`1px solid ${C.brd}`,flexShrink:0}}>
         <Steps current={step} L={L}/>
@@ -1121,6 +1557,10 @@ function Zaymmo(){
             <MF label={L.surface}>
               <input type="number" value={meta.surface} onChange={e=>setM("surface",e.target.value)}
                 placeholder="85" style={inp}/>
+            </MF>
+            <MF label="Terrain (m²)">
+              <input type="number" value={meta.terrain||""} onChange={e=>setM("terrain",e.target.value)}
+                placeholder="ex: 500 (maison/villa)" style={inp}/>
             </MF>
             <MF label={L.prix}>
               <div style={{display:"flex",gap:5}}>
@@ -1378,11 +1818,25 @@ function Zaymmo(){
               <div style={{display:"flex",justifyContent:"space-between",
                 alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:10}}>
                 <ST color={C.green}>{L.results}</ST>
-                <button onClick={genAnnonce} disabled={loading}
-                  style={{...btn("linear-gradient(135deg,#7C6FFF,#4AE88A)"),
-                    fontSize:12,padding:"10px 16px",opacity:loading?0.5:1}}>
-                  {L.genAnnonce}
-                </button>
+                <div style={{display:"flex",flexDirection:"column",gap:8,alignItems:"flex-end"}}>
+                  {/* Case à cocher — constatations IA */}
+                  <label style={{display:"flex",alignItems:"center",gap:8,
+                    fontSize:11,color:includeAIFindings?C.gold:"#555",
+                    cursor:"pointer",padding:"6px 10px",borderRadius:8,
+                    background:includeAIFindings?C.gold+"15":"#0A0A18",
+                    border:`1px solid ${includeAIFindings?C.gold+"50":C.brd}`,
+                    transition:"all 0.2s"}}>
+                    <input type="checkbox" checked={includeAIFindings}
+                      onChange={e=>setIncludeAIFindings(e.target.checked)}
+                      style={{accentColor:C.gold,width:15,height:15}}/>
+                    <span>📸 Inclure observations photos dans l'annonce</span>
+                  </label>
+                  <button onClick={genAnnonce} disabled={loading}
+                    style={{...btn("linear-gradient(135deg,#7C6FFF,#4AE88A)"),
+                      fontSize:12,padding:"10px 16px",opacity:loading?0.5:1}}>
+                    {L.genAnnonce}
+                  </button>
+                </div>
               </div>
               <div style={{display:"flex",gap:16,marginBottom:14,alignItems:"center",flexWrap:"wrap"}}>
                 <Ring score={synth.score_global||5}/>
@@ -1461,6 +1915,15 @@ function Zaymmo(){
                   <button onClick={()=>setStep("fiche_interne")}
                     style={{...btn(C.green+"20",C.green,{border:`1px solid ${C.green}40`,fontSize:11,padding:"7px 12px"})}}>
                     📄
+                  </button>
+                  {/* Boutons impression */}
+                  <button onClick={printPro}
+                    style={{...btn("#1A1A2E",C.gold,{border:`1px solid ${C.gold}40`,fontSize:11,padding:"7px 12px"})}}>
+                    🖨️ Pro
+                  </button>
+                  <button onClick={printClient}
+                    style={{...btn("#1A1A2E",C.green,{border:`1px solid ${C.green}40`,fontSize:11,padding:"7px 12px"})}}>
+                    🖨️ Client
                   </button>
                 </div>
               </div>
