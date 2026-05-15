@@ -318,7 +318,7 @@ const aPrompt = (synth, meta, lang, profil={}, includeAI=false) => {
   const instruction = LANG_INSTRUCTIONS[lang]||LANG_INSTRUCTIONS.fr;
   const countryCtx = {fr:"France",de:"Deutschland",be:"Belgique/Belgie",lu:"Letzebuerg/Luxembourg",gb:"United Kingdom"}[meta.pays]||"France";
   const profilInfo = profil?.nomAgence
-    ? `AGENCE: ${profil.nomAgence}${profil.nomAgent?" | Agent: "+profil.nomAgent:""}${profil.telephone?" | Tel: "+profil.telephone":""}`
+    ? "AGENCE: "+profil.nomAgence+(profil.nomAgent?" | Agent: "+profil.nomAgent:"")+(profil.telephone?" | Tel: "+profil.telephone:"")
     : "";
   const terrainInfo = meta.terrain ? `Terrain: ${meta.terrain}m2` : "";
 
