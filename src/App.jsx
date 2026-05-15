@@ -1,15 +1,15 @@
 import { useState, useRef, useEffect } from "react";
 
-// ══════════════════════════════════════════════════════
-// ZAYMMO v3 — AI · Vision · Immobilier
-// Historique · Comptes · Fiches imprimables
-// ══════════════════════════════════════════════════════
+// ======================================================
+// ZAYMMO v3 -- AI . Vision . Immobilier
+// Historique . Comptes . Fiches imprimables
+// ======================================================
 
 const APP_PASSWORD = import.meta.env.VITE_APP_PASSWORD || "imoimoimoiaia";
 const API_KEY      = import.meta.env.VITE_ANTHROPIC_KEY || "";
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 
-// ── SYSTÈME DE COMPTES (localStorage) ────────────────
+// -- SYSTEME DE COMPTES (localStorage) ----------------
 const STORAGE_KEY = "zaymmo_users";
 const HISTORY_KEY = "zaymmo_history";
 const SESSION_KEY = "zaymmo_session";
@@ -18,7 +18,7 @@ function getUsers() {
   try {
     const data = localStorage.getItem(STORAGE_KEY);
     if (!data) {
-      // Créer compte admin par défaut
+      // Creer compte admin par defaut
       const admin = { id:"admin", name:"Admin", role:"admin", password: APP_PASSWORD, createdAt: new Date().toISOString() };
       localStorage.setItem(STORAGE_KEY, JSON.stringify([admin]));
       return [admin];
@@ -51,230 +51,230 @@ function clearSession() {
   try { sessionStorage.removeItem(SESSION_KEY); sessionStorage.removeItem("zaymmo_auth"); } catch {}
 }
 
-// ── TRADUCTIONS ───────────────────────────────────────
+// -- TRADUCTIONS ---------------------------------------
 const I18N = {
   fr:{
-    steps:["Infos bien","Photos","Analyse","Annonce","Aperçu","Fiche interne"],
-    icons:["📋","📸","🔍","✍️","👁","📄"],
-    typeBien:"Type de bien",surface:"Surface (m²)",prix:"Prix de vente",
-    ville:"Ville / Quartier",pieces:"Nb pièces",chambres:"Nb chambres",
-    etage:"Étage",annee:"Année construction",charges:"Charges/mois",
+    steps:["Infos bien","Photos","Analyse","Annonce","Apercu","Fiche interne"],
+    icons:["","","","","",""],
+    typeBien:"Type de bien",surface:"Surface (m2)",prix:"Prix de vente",
+    ville:"Ville / Quartier",pieces:"Nb pieces",chambres:"Nb chambres",
+    etage:"Etage",annee:"Annee construction",charges:"Charges/mois",
     dpe:"Classe DPE",chauffage:"Chauffage",exposition:"Exposition",
     pays:"Pays du bien",devise:"Devise",langAnnonce:"Langue de l'annonce",
-    equipements:"ÉQUIPEMENTS",infoSub:"Remplis ces infos avant d'analyser",
+    equipements:"EQUIPEMENTS",infoSub:"Remplis ces infos avant d'analyser",
     addPhoto:"PHOTOS DU BIEN",gallerie:"Galerie photo",camera:"Prendre une photo",
-    nommer:"NOMMER CETTE PIÈCE",suppr:"✕ Supprimer",
-    analyser:"▶ Analyser",analysing:"⟳ Analyse en cours",
-    results:"✓ RÉSULTATS",genAnnonce:"✍️ Générer l'annonce →",
-    annonceTitle:"ANNONCE GÉNÉRÉE",reviser:"✎ Réviser",fermer:"✕ Fermer",
-    appliquer:"Appliquer",apercu:"👁 Aperçu →",
-    copier:"⇗ Copier",copie:"✓ Copié !",
-    paysPlatform:"Plateformes — choisir le pays",
-    ficheTitle:"📄 FICHE INTERNE",telecharger:"⬇ Télécharger",
-    pointsForts:"POINTS FORTS",defauts:"DÉFAUTS",
+    nommer:"NOMMER CETTE PIECE",suppr:" Supprimer",
+    analyser:"> Analyser",analysing:"... Analyse en cours",
+    results:"OK RESULTATS",genAnnonce:" Generer l'annonce ->",
+    annonceTitle:"ANNONCE GENEREE",reviser:" Reviser",fermer:" Fermer",
+    appliquer:"Appliquer",apercu:" Apercu ->",
+    copier:" Copier",copie:"OK Copie !",
+    paysPlatform:"Plateformes -- choisir le pays",
+    ficheTitle:" FICHE INTERNE",telecharger:" Telecharger",
+    pointsForts:"POINTS FORTS",defauts:"DEFAUTS",
     retouches:"RETOUCHES & HOME STAGING",
     travaux:"TRAVAUX",profil:"PROFIL ACHETEUR",
-    estimation:"ESTIMATION",mentions:"MENTIONS LÉGALES",
-    penseBetes:"PENSE-BÊTES VISITES",conseil:"CONSEIL EXPERT",
-    noKey:"🔑 Clé API requise — voir README",
+    estimation:"ESTIMATION",mentions:"MENTIONS LEGALES",
+    penseBetes:"PENSE-BETES VISITES",conseil:"CONSEIL EXPERT",
+    noKey:" Cle API requise -- voir README",
     types:["Appartement","Maison","Studio","Loft","Villa","Duplex","Terrain","Parking","Local"],
-    chauffages:["Collectif gaz","Individuel gaz","Électrique","PAC","Géothermie","Fuel","Autre"],
-    expos:["Non renseignée","Nord","Nord-Est","Est","Sud-Est","Sud","Sud-Ouest","Ouest","Nord-Ouest"],
-    dpes:["Non renseigné","A","B","C","D","E","F","G"],
-    equip:[["cave","🔒 Cave"],["parking","🚗 Parking"],["terrasse","🌿 Terrasse"],
-           ["balcon","🌇 Balcon"],["jardin","🌳 Jardin"],["ascenseur","🛗 Ascenseur"],
-           ["piscine","🏊 Piscine"],["gardien","👮 Gardien"],["digicode","📱 Digicode"],
-           ["double_vitrage","🪟 Double vitrage"],["fibre","📡 Fibre"]],
+    chauffages:["Collectif gaz","Individuel gaz","Electrique","PAC","Geothermie","Fuel","Autre"],
+    expos:["Non renseignee","Nord","Nord-Est","Est","Sud-Est","Sud","Sud-Ouest","Ouest","Nord-Ouest"],
+    dpes:["Non renseigne","A","B","C","D","E","F","G"],
+    equip:[["cave"," Cave"],["parking"," Parking"],["terrasse"," Terrasse"],
+           ["balcon"," Balcon"],["jardin"," Jardin"],["ascenseur"," Ascenseur"],
+           ["piscine"," Piscine"],["gardien"," Gardien"],["digicode"," Digicode"],
+           ["double_vitrage"," Double vitrage"],["fibre"," Fibre"]],
   },
   en:{
     steps:["Property Info","Photos","Analysis","Listing","Preview","Internal Sheet"],
-    icons:["📋","📸","🔍","✍️","👁","📄"],
-    typeBien:"Property type",surface:"Area (m²)",prix:"Sale price",
+    icons:["","","","","",""],
+    typeBien:"Property type",surface:"Area (m2)",prix:"Sale price",
     ville:"City / District",pieces:"Rooms",chambres:"Bedrooms",
     etage:"Floor",annee:"Year built",charges:"Monthly charges",
     dpe:"EPC class",chauffage:"Heating",exposition:"Orientation",
     pays:"Property country",devise:"Currency",langAnnonce:"Listing language",
     equipements:"AMENITIES",infoSub:"Fill in details before analysing",
     addPhoto:"PROPERTY PHOTOS",gallerie:"Photo gallery",camera:"Take a photo",
-    nommer:"NAME THIS ROOM",suppr:"✕ Remove",
-    analyser:"▶ Analyse",analysing:"⟳ Analysing",
-    results:"✓ RESULTS",genAnnonce:"✍️ Generate listing →",
-    annonceTitle:"GENERATED LISTING",reviser:"✎ Edit",fermer:"✕ Close",
-    appliquer:"Apply",apercu:"👁 Preview →",
-    copier:"⇗ Copy",copie:"✓ Copied!",
-    paysPlatform:"Platforms — choose country",
-    ficheTitle:"📄 INTERNAL SHEET",telecharger:"⬇ Download",
+    nommer:"NAME THIS ROOM",suppr:" Remove",
+    analyser:"> Analyse",analysing:"... Analysing",
+    results:"OK RESULTS",genAnnonce:" Generate listing ->",
+    annonceTitle:"GENERATED LISTING",reviser:" Edit",fermer:" Close",
+    appliquer:"Apply",apercu:" Preview ->",
+    copier:" Copy",copie:"OK Copied!",
+    paysPlatform:"Platforms -- choose country",
+    ficheTitle:" INTERNAL SHEET",telecharger:" Download",
     pointsForts:"STRENGTHS",defauts:"DEFECTS",
     retouches:"STAGING TIPS",
     travaux:"WORKS",profil:"IDEAL BUYER",
     estimation:"ESTIMATE",mentions:"LEGAL NOTICES",
     penseBetes:"VISIT NOTES",conseil:"EXPERT ADVICE",
-    noKey:"🔑 API key required — see README",
+    noKey:" API key required -- see README",
     types:["Apartment","House","Studio","Loft","Villa","Duplex","Land","Parking","Commercial"],
     chauffages:["Collective gas","Individual gas","Electric","Heat pump","Geothermal","Oil","Other"],
     expos:["Not specified","North","NE","East","SE","South","SW","West","NW"],
     dpes:["Not specified","A","B","C","D","E","F","G"],
-    equip:[["cave","🔒 Cellar"],["parking","🚗 Parking"],["terrasse","🌿 Terrace"],
-           ["balcon","🌇 Balcony"],["jardin","🌳 Garden"],["ascenseur","🛗 Elevator"],
-           ["piscine","🏊 Pool"],["gardien","👮 Concierge"],["digicode","📱 Keypad"],
-           ["double_vitrage","🪟 Double glazing"],["fibre","📡 Fibre"]],
+    equip:[["cave"," Cellar"],["parking"," Parking"],["terrasse"," Terrace"],
+           ["balcon"," Balcony"],["jardin"," Garden"],["ascenseur"," Elevator"],
+           ["piscine"," Pool"],["gardien"," Concierge"],["digicode"," Keypad"],
+           ["double_vitrage"," Double glazing"],["fibre"," Fibre"]],
   },
   de:{
     steps:["Objektdaten","Fotos","Analyse","Anzeige","Vorschau","Interne Akte"],
-    icons:["📋","📸","🔍","✍️","👁","📄"],
-    typeBien:"Objekttyp",surface:"Fläche (m²)",prix:"Verkaufspreis",
+    icons:["","","","","",""],
+    typeBien:"Objekttyp",surface:"Flache (m2)",prix:"Verkaufspreis",
     ville:"Stadt / Viertel",pieces:"Zimmer",chambres:"Schlafzimmer",
     etage:"Stockwerk",annee:"Baujahr",charges:"Nebenkosten/Mt.",
     dpe:"Energieklasse",chauffage:"Heizung",exposition:"Ausrichtung",
-    pays:"Land des Objekts",devise:"Währung",langAnnonce:"Anzeigesprache",
-    equipements:"AUSSTATTUNG",infoSub:"Bitte vor der Analyse ausfüllen",
+    pays:"Land des Objekts",devise:"Wahrung",langAnnonce:"Anzeigesprache",
+    equipements:"AUSSTATTUNG",infoSub:"Bitte vor der Analyse ausfullen",
     addPhoto:"OBJEKTFOTOS",gallerie:"Fotogalerie",camera:"Foto aufnehmen",
-    nommer:"RAUM BENENNEN",suppr:"✕ Löschen",
-    analyser:"▶ Analysieren",analysing:"⟳ Analyse läuft",
-    results:"✓ ERGEBNISSE",genAnnonce:"✍️ Anzeige erstellen →",
-    annonceTitle:"GENERIERTE ANZEIGE",reviser:"✎ Bearbeiten",fermer:"✕ Schließen",
-    appliquer:"Anwenden",apercu:"👁 Vorschau →",
-    copier:"⇗ Kopieren",copie:"✓ Kopiert!",
-    paysPlatform:"Plattformen — Land wählen",
-    ficheTitle:"📄 INTERNE AKTE",telecharger:"⬇ Herunterladen",
-    pointsForts:"STÄRKEN",defauts:"MÄNGEL",
+    nommer:"RAUM BENENNEN",suppr:" Loschen",
+    analyser:"> Analysieren",analysing:"... Analyse lauft",
+    results:"OK ERGEBNISSE",genAnnonce:" Anzeige erstellen ->",
+    annonceTitle:"GENERIERTE ANZEIGE",reviser:" Bearbeiten",fermer:" Schlieen",
+    appliquer:"Anwenden",apercu:" Vorschau ->",
+    copier:" Kopieren",copie:"OK Kopiert!",
+    paysPlatform:"Plattformen -- Land wahlen",
+    ficheTitle:" INTERNE AKTE",telecharger:" Herunterladen",
+    pointsForts:"STRKEN",defauts:"MNGEL",
     retouches:"STAGING-TIPPS",
-    travaux:"ARBEITEN",profil:"IDEALER KÄUFER",
-    estimation:"PREISSCHÄTZUNG",mentions:"RECHTLICHE HINWEISE",
+    travaux:"ARBEITEN",profil:"IDEALER KUFER",
+    estimation:"PREISSCHTZUNG",mentions:"RECHTLICHE HINWEISE",
     penseBetes:"BESICHTIGUNGSNOTIZEN",conseil:"EXPERTENRAT",
-    noKey:"🔑 API-Schlüssel erforderlich",
-    types:["Wohnung","Haus","Studio","Loft","Villa","Duplex","Grundstück","Parkplatz","Gewerbe"],
-    chauffages:["Zentralheizung Gas","Einzelheizung Gas","Elektrisch","Wärmepumpe","Geothermie","Öl","Sonstige"],
-    expos:["Nicht angegeben","Nord","Nordost","Ost","Südost","Süd","Südwest","West","Nordwest"],
+    noKey:" API-Schlussel erforderlich",
+    types:["Wohnung","Haus","Studio","Loft","Villa","Duplex","Grundstuck","Parkplatz","Gewerbe"],
+    chauffages:["Zentralheizung Gas","Einzelheizung Gas","Elektrisch","Warmepumpe","Geothermie","Ol","Sonstige"],
+    expos:["Nicht angegeben","Nord","Nordost","Ost","Sudost","Sud","Sudwest","West","Nordwest"],
     dpes:["Nicht angegeben","A","B","C","D","E","F","G"],
-    equip:[["cave","🔒 Keller"],["parking","🚗 Parkplatz"],["terrasse","🌿 Terrasse"],
-           ["balcon","🌇 Balkon"],["jardin","🌳 Garten"],["ascenseur","🛗 Aufzug"],
-           ["piscine","🏊 Pool"],["gardien","👮 Hausmeister"],["digicode","📱 Türcode"],
-           ["double_vitrage","🪟 Doppelverglasung"],["fibre","📡 Glasfaser"]],
+    equip:[["cave"," Keller"],["parking"," Parkplatz"],["terrasse"," Terrasse"],
+           ["balcon"," Balkon"],["jardin"," Garten"],["ascenseur"," Aufzug"],
+           ["piscine"," Pool"],["gardien"," Hausmeister"],["digicode"," Turcode"],
+           ["double_vitrage"," Doppelverglasung"],["fibre"," Glasfaser"]],
   },
   lu:{
     steps:["Infos bien","Fotoen","Analyse","Annonce","Virschau","Intern Blat"],
-    icons:["📋","📸","🔍","✍️","👁","📄"],
-    typeBien:"Typ",surface:"Fläch (m²)",prix:"Verkaafspräis",
-    ville:"Stad / Quartier",pieces:"Stécker",chambres:"Schlofzëmmer",
-    etage:"Etage",annee:"Baajoer",charges:"Käschten/Mount",
-    dpe:"Energieklass",chauffage:"Hëtzung",exposition:"Ausrichtung",
-    pays:"Land",devise:"Währung",langAnnonce:"Sprooch",
-    equipements:"AUSSTATTUNG",infoSub:"Virun der Analyse ausfëllen",
+    icons:["","","","","",""],
+    typeBien:"Typ",surface:"Flach (m2)",prix:"Verkaafsprais",
+    ville:"Stad / Quartier",pieces:"Stecker",chambres:"Schlofzemmer",
+    etage:"Etage",annee:"Baajoer",charges:"Kaschten/Mount",
+    dpe:"Energieklass",chauffage:"Hetzung",exposition:"Ausrichtung",
+    pays:"Land",devise:"Wahrung",langAnnonce:"Sprooch",
+    equipements:"AUSSTATTUNG",infoSub:"Virun der Analyse ausfellen",
     addPhoto:"FOTOEN",gallerie:"Fotogalerie",camera:"Foto huelen",
-    nommer:"RAUM NENNEN",suppr:"✕ Läschen",
-    analyser:"▶ Analyséieren",analysing:"⟳ Analyse leeft",
-    results:"✓ RESULTATER",genAnnonce:"✍️ Annonce erstellen →",
-    annonceTitle:"GENERÉIERT ANNONCE",reviser:"✎ Beaarbechten",fermer:"✕ Zoumaachen",
-    appliquer:"Uwenden",apercu:"👁 Virschau →",
-    copier:"⇗ Kopéieren",copie:"✓ Kopéiert!",
-    paysPlatform:"Plattformen — Land wielen",
-    ficheTitle:"📄 INTERN BLAT",telecharger:"⬇ Eroflueden",
-    pointsForts:"STÄERKTEN",defauts:"MÄNGEL",
+    nommer:"RAUM NENNEN",suppr:" Laschen",
+    analyser:"> Analyseieren",analysing:"... Analyse leeft",
+    results:"OK RESULTATER",genAnnonce:" Annonce erstellen ->",
+    annonceTitle:"GENEREIERT ANNONCE",reviser:" Beaarbechten",fermer:" Zoumaachen",
+    appliquer:"Uwenden",apercu:" Virschau ->",
+    copier:" Kopeieren",copie:"OK Kopeiert!",
+    paysPlatform:"Plattformen -- Land wielen",
+    ficheTitle:" INTERN BLAT",telecharger:" Eroflueden",
+    pointsForts:"STERKTEN",defauts:"MNGEL",
     retouches:"STAGING-TIPPS",
-    travaux:"AARBECHTEN",profil:"IDEALE KÄUFER",
-    estimation:"PRÄISSCHÄTZUNG",mentions:"RECHTLECH HIWEISER",
+    travaux:"AARBECHTEN",profil:"IDEALE KUFER",
+    estimation:"PRISSCHTZUNG",mentions:"RECHTLECH HIWEISER",
     penseBetes:"BESICHTIGUNGSNOTIZEN",conseil:"EXPERTEROT",
-    noKey:"🔑 API-Schlëssel erfuerderlech",
-    types:["Appartement","Haus","Studio","Loft","Villa","Duplex","Terrain","Parkplaz","Geschäft"],
-    chauffages:["Kollektiv Gas","Eenzel Gas","Elektresch","Wärmepompe","Geothermie","Ueleg","Soss"],
-    expos:["Net uginn","Nord","Nordost","Ost","Südost","Süd","Südwest","West","Nordwest"],
+    noKey:" API-Schlessel erfuerderlech",
+    types:["Appartement","Haus","Studio","Loft","Villa","Duplex","Terrain","Parkplaz","Geschaft"],
+    chauffages:["Kollektiv Gas","Eenzel Gas","Elektresch","Warmepompe","Geothermie","Ueleg","Soss"],
+    expos:["Net uginn","Nord","Nordost","Ost","Sudost","Sud","Sudwest","West","Nordwest"],
     dpes:["Net uginn","A","B","C","D","E","F","G"],
-    equip:[["cave","🔒 Keller"],["parking","🚗 Parkplaz"],["terrasse","🌿 Terrasse"],
-           ["balcon","🌇 Balkon"],["jardin","🌳 Gaart"],["ascenseur","🛗 Lift"],
-           ["piscine","🏊 Schwämmbad"],["gardien","👮 Gardist"],["digicode","📱 Duercode"],
-           ["double_vitrage","🪟 Duebelgliesung"],["fibre","📡 Glasfaser"]],
+    equip:[["cave"," Keller"],["parking"," Parkplaz"],["terrasse"," Terrasse"],
+           ["balcon"," Balkon"],["jardin"," Gaart"],["ascenseur"," Lift"],
+           ["piscine"," Schwammbad"],["gardien"," Gardist"],["digicode"," Duercode"],
+           ["double_vitrage"," Duebelgliesung"],["fibre"," Glasfaser"]],
   },
   nl:{
     steps:["Objectinfo","Foto's","Analyse","Advertentie","Voorbeeld","Intern dossier"],
-    icons:["📋","📸","🔍","✍️","👁","📄"],
-    typeBien:"Type object",surface:"Oppervlakte (m²)",prix:"Verkoopprijs",
+    icons:["","","","","",""],
+    typeBien:"Type object",surface:"Oppervlakte (m2)",prix:"Verkoopprijs",
     ville:"Stad / Wijk",pieces:"Kamers",chambres:"Slaapkamers",
     etage:"Verdieping",annee:"Bouwjaar",charges:"Servicekosten/mnd",
-    dpe:"Energielabel",chauffage:"Verwarming",exposition:"Oriëntatie",
+    dpe:"Energielabel",chauffage:"Verwarming",exposition:"Orientatie",
     pays:"Land van object",devise:"Valuta",langAnnonce:"Taal advertentie",
     equipements:"VOORZIENINGEN",infoSub:"Vul dit in voor de analyse",
     addPhoto:"OBJECTFOTO'S",gallerie:"Fotogalerij",camera:"Foto nemen",
-    nommer:"RUIMTE BENOEMEN",suppr:"✕ Verwijderen",
-    analyser:"▶ Analyseren",analysing:"⟳ Analyse loopt",
-    results:"✓ RESULTATEN",genAnnonce:"✍️ Advertentie maken →",
-    annonceTitle:"GEGENEREERDE ADVERTENTIE",reviser:"✎ Bewerken",fermer:"✕ Sluiten",
-    appliquer:"Toepassen",apercu:"👁 Voorbeeld →",
-    copier:"⇗ Kopiëren",copie:"✓ Gekopieerd!",
-    paysPlatform:"Platformen — kies land",
-    ficheTitle:"📄 INTERN DOSSIER",telecharger:"⬇ Downloaden",
+    nommer:"RUIMTE BENOEMEN",suppr:" Verwijderen",
+    analyser:"> Analyseren",analysing:"... Analyse loopt",
+    results:"OK RESULTATEN",genAnnonce:" Advertentie maken ->",
+    annonceTitle:"GEGENEREERDE ADVERTENTIE",reviser:" Bewerken",fermer:" Sluiten",
+    appliquer:"Toepassen",apercu:" Voorbeeld ->",
+    copier:" Kopieren",copie:"OK Gekopieerd!",
+    paysPlatform:"Platformen -- kies land",
+    ficheTitle:" INTERN DOSSIER",telecharger:" Downloaden",
     pointsForts:"STERKTES",defauts:"GEBREKEN",
     retouches:"STAGING-TIPS",
     travaux:"WERKEN",profil:"IDEALE KOPER",
     estimation:"PRIJSSCHATTING",mentions:"WETTELIJKE VERMELDINGEN",
     penseBetes:"BEZOEKNOTITIES",conseil:"EXPERT ADVIES",
-    noKey:"🔑 API-sleutel vereist",
+    noKey:" API-sleutel vereist",
     types:["Appartement","Huis","Studio","Loft","Villa","Duplex","Grond","Parking","Bedrijf"],
     chauffages:["Collectief gas","Individueel gas","Elektrisch","Warmtepomp","Geothermisch","Stookolie","Andere"],
     expos:["Niet opgegeven","Noord","Noordoost","Oost","Zuidoost","Zuid","Zuidwest","West","Noordwest"],
     dpes:["Niet opgegeven","A","B","C","D","E","F","G"],
-    equip:[["cave","🔒 Kelder"],["parking","🚗 Parking"],["terrasse","🌿 Terras"],
-           ["balcon","🌇 Balkon"],["jardin","🌳 Tuin"],["ascenseur","🛗 Lift"],
-           ["piscine","🏊 Zwembad"],["gardien","👮 Conciërge"],["digicode","📱 Digicode"],
-           ["double_vitrage","🪟 Dubbele beglazing"],["fibre","📡 Glasvezel"]],
+    equip:[["cave"," Kelder"],["parking"," Parking"],["terrasse"," Terras"],
+           ["balcon"," Balkon"],["jardin"," Tuin"],["ascenseur"," Lift"],
+           ["piscine"," Zwembad"],["gardien"," Concierge"],["digicode"," Digicode"],
+           ["double_vitrage"," Dubbele beglazing"],["fibre"," Glasvezel"]],
   },
 };
 
-// ── PLATEFORMES PAR PAYS ──────────────────────────────
+// -- PLATEFORMES PAR PAYS ------------------------------
 const PLATFORMS = {
   fr:[
-    {id:"seloger",name:"SeLoger",color:"#E30613",logo:"🏠"},
-    {id:"leboncoin",name:"LeBonCoin",color:"#F56B2A",logo:"🟠"},
-    {id:"pap",name:"PAP",color:"#005BAA",logo:"🔵"},
-    {id:"bienici",name:"Bien'ici",color:"#00B0F0",logo:"🏡"},
+    {id:"seloger",name:"SeLoger",color:"#E30613",logo:""},
+    {id:"leboncoin",name:"LeBonCoin",color:"#F56B2A",logo:""},
+    {id:"pap",name:"PAP",color:"#005BAA",logo:""},
+    {id:"bienici",name:"Bien'ici",color:"#00B0F0",logo:""},
   ],
   de:[
-    {id:"immoscout",name:"ImmoScout24",color:"#E8230A",logo:"🏠"},
-    {id:"immonet",name:"Immonet",color:"#005CA9",logo:"🔵"},
-    {id:"kleinanz",name:"Kleinanzeigen",color:"#C8252C",logo:"🟥"},
-    {id:"immowelt",name:"Immowelt",color:"#009FE3",logo:"🏡"},
+    {id:"immoscout",name:"ImmoScout24",color:"#E8230A",logo:""},
+    {id:"immonet",name:"Immonet",color:"#005CA9",logo:""},
+    {id:"kleinanz",name:"Kleinanzeigen",color:"#C8252C",logo:""},
+    {id:"immowelt",name:"Immowelt",color:"#009FE3",logo:""},
   ],
   be:[
-    {id:"immoweb",name:"Immoweb",color:"#E8402A",logo:"🏠"},
-    {id:"logic",name:"Logic-immo",color:"#0072BC",logo:"🔵"},
-    {id:"zimmo",name:"Zimmo",color:"#FF6600",logo:"🟠"},
-    {id:"realo",name:"Realo",color:"#2ECC71",logo:"🟢"},
+    {id:"immoweb",name:"Immoweb",color:"#E8402A",logo:""},
+    {id:"logic",name:"Logic-immo",color:"#0072BC",logo:""},
+    {id:"zimmo",name:"Zimmo",color:"#FF6600",logo:""},
+    {id:"realo",name:"Realo",color:"#2ECC71",logo:""},
   ],
   lu:[
-    {id:"athome",name:"Athome.lu",color:"#C8171E",logo:"🏠"},
-    {id:"immotop",name:"Immotop",color:"#0066CC",logo:"🔵"},
-    {id:"encord",name:"Encord",color:"#FF8800",logo:"🟠"},
+    {id:"athome",name:"Athome.lu",color:"#C8171E",logo:""},
+    {id:"immotop",name:"Immotop",color:"#0066CC",logo:""},
+    {id:"encord",name:"Encord",color:"#FF8800",logo:""},
   ],
   gb:[
-    {id:"rightmove",name:"Rightmove",color:"#00DEB6",logo:"🏠"},
-    {id:"zoopla",name:"Zoopla",color:"#8B00FF",logo:"🟣"},
-    {id:"onthemkt",name:"OnTheMarket",color:"#1C3F6E",logo:"🔵"},
+    {id:"rightmove",name:"Rightmove",color:"#00DEB6",logo:""},
+    {id:"zoopla",name:"Zoopla",color:"#8B00FF",logo:""},
+    {id:"onthemkt",name:"OnTheMarket",color:"#1C3F6E",logo:""},
   ],
 };
 
 const COUNTRIES = {
-  fr:"🇫🇷 France",de:"🇩🇪 Allemagne",be:"🇧🇪 Belgique",lu:"🇱🇺 Luxembourg",gb:"🇬🇧 Royaume-Uni"
+  fr:"FR France",de:"DE Allemagne",be:"BE Belgique",lu:"LU Luxembourg",gb:"GB Royaume-Uni"
 };
 
-// ── MENTIONS LÉGALES ──────────────────────────────────
+// -- MENTIONS LEGALES ----------------------------------
 const LEGAL = {
-  fr:`Annonce soumise à la loi ALUR du 24 mars 2014. Prix exprimé honoraires inclus (HAI). DPE obligatoire selon décret n°2006-1147. Surface calculée selon la loi Carrez. Informations non contractuelles.`,
-  de:`Angaben gemäß § 5a TMG. Energieausweis vorhanden gemäß EnEV 2014. Courtage zzgl. gesetzlicher MwSt. Angaben ohne Gewähr. Datenschutz gemäß DSGVO.`,
-  be:`Annonce soumise au Code civil belge. PEB obligatoire. Prix HTVA sauf mention contraire. Informations non contractuelles. Honoraires selon barème en vigueur.`,
-  lu:`Annonce soumise à la loi luxembourgeoise du 30 juillet 2013 relative aux transactions immobilières. CPE obligatoire. Prix TVA incluse. Informations non contractuelles.`,
+  fr:`Annonce soumise a la loi ALUR du 24 mars 2014. Prix exprime honoraires inclus (HAI). DPE obligatoire selon decret ndeg2006-1147. Surface calculee selon la loi Carrez. Informations non contractuelles.`,
+  de:`Angaben gema  5a TMG. Energieausweis vorhanden gema EnEV 2014. Courtage zzgl. gesetzlicher MwSt. Angaben ohne Gewahr. Datenschutz gema DSGVO.`,
+  be:`Annonce soumise au Code civil belge. PEB obligatoire. Prix HTVA sauf mention contraire. Informations non contractuelles. Honoraires selon bareme en vigueur.`,
+  lu:`Annonce soumise a la loi luxembourgeoise du 30 juillet 2013 relative aux transactions immobilieres. CPE obligatoire. Prix TVA incluse. Informations non contractuelles.`,
   gb:`Subject to Property Misdescriptions Act 1991 and Consumer Protection Regulations 2008. EPC required under EPB Regulations 2012. All measurements approximate.`,
 };
 
 // Langue automatique par pays de plateforme
 const PLATFORM_LANG = {fr:"fr",de:"de",be:"nl",lu:"fr",gb:"en"};
 
-const CURRENCIES = {"EUR":"€","CHF":"CHF","GBP":"£"};
+const CURRENCIES = {"EUR":"","CHF":"CHF","GBP":""};
 
 const ROOMS = [
-  "Salon","Séjour","Cuisine","Chambre principale","Chambre",
-  "Salle de bain","Salle d'eau","WC","Entrée","Bureau",
+  "Salon","Sejour","Cuisine","Chambre principale","Chambre",
+  "Salle de bain","Salle d'eau","WC","Entree","Bureau",
   "Dressing","Cellier","Buanderie","Cave","Garage",
-  "Terrasse","Balcon","Jardin","Façade","Autre"
+  "Terrasse","Balcon","Jardin","Facade","Autre"
 ];
 
 const DPE_C = {
@@ -282,11 +282,11 @@ const DPE_C = {
   D:"#FFF200",E:"#F7941D",F:"#F15A22",G:"#ED1C24"
 };
 
-// ── PROMPTS ───────────────────────────────────────────
-const VSYS = `Tu es un expert immobilier et diagnostiqueur. Réponds UNIQUEMENT en JSON valide sans backticks.`;
+// -- PROMPTS -------------------------------------------
+const VSYS = `Tu es un expert immobilier et diagnostiqueur. Reponds UNIQUEMENT en JSON valide sans backticks.`;
 
 const vPrompt = (room) => `Analyse cette photo de "${room}". JSON:
-{"piece":"${room}","surface_estimee_m2":<number|null>,"hauteur_plafond":"<standard|élevé|très élevé|mansardé|non visible>","etat_general":"<excellent|très bon|bon|correct|à rafraîchir|à rénover>","score_etat":<1-10>,"luminosite":"<excellente|bonne|correcte|faible>","revetement_sol":"<type>","revetement_murs":"<type>","menuiseries":"<double vitrage|triple vitrage|simple vitrage|non visible>","chauffage_visible":"<type|non visible>","equipements":["liste"],"defauts_detectes":["défauts visibles"],"points_forts":["atouts"],"suggestions_retouche":["améliorations"],"home_staging":["conseils"],"commentaire_expert":"2 phrases"}`;
+{"piece":"${room}","surface_estimee_m2":<number|null>,"hauteur_plafond":"<standard|eleve|tres eleve|mansarde|non visible>","etat_general":"<excellent|tres bon|bon|correct|a rafraichir|a renover>","score_etat":<1-10>,"luminosite":"<excellente|bonne|correcte|faible>","revetement_sol":"<type>","revetement_murs":"<type>","menuiseries":"<double vitrage|triple vitrage|simple vitrage|non visible>","chauffage_visible":"<type|non visible>","equipements":["liste"],"defauts_detectes":["defauts visibles"],"points_forts":["atouts"],"suggestions_retouche":["ameliorations"],"home_staging":["conseils"],"commentaire_expert":"2 phrases"}`;
 
 const sPrompt = (analyses, meta) => {
   const safe = {type:meta.type,surface:meta.surface,pieces:meta.pieces,chambres:meta.chambres,
@@ -294,15 +294,15 @@ const sPrompt = (analyses, meta) => {
     chauffage:meta.chauffage,exposition:meta.exposition,cave:meta.cave,parking:meta.parking,
     terrasse:meta.terrasse,balcon:meta.balcon,jardin:meta.jardin,ascenseur:meta.ascenseur,
     double_vitrage:meta.double_vitrage,piscine:meta.piscine,prix_vendeur:meta.prix||null,devise:meta.devise};
-  return `Expert immobilier. Synthèse du bien:\nBIEN: ${JSON.stringify(safe)}\nANALYSES: ${JSON.stringify(analyses)}\nJSON:
-{"surface_totale_estimee":<n>,"nb_pieces":<n>,"nb_chambres":<n>,"etat_global":"<état>","score_global":<1-10>,"style_dominant":"<style>","dpe_estime":"<A-G>","points_forts":["top5"],"points_faibles":["défauts"],"defauts_critiques":["bloquants"],"travaux_urgents":["urgents"],"travaux_valorisants":["valorisants"],"budget_travaux_estime":"<fourchette>","suggestions_retouche_globales":["retouches"],"profil_acheteur":"<profil>","fourchette_prix_basse":<n>,"fourchette_prix_haute":<n>,"conseil_mise_en_vente":"2 phrases","pense_betes":["notes visites et négociations"]}`;
+  return `Expert immobilier. Synthese du bien:\nBIEN: ${JSON.stringify(safe)}\nANALYSES: ${JSON.stringify(analyses)}\nJSON:
+{"surface_totale_estimee":<n>,"nb_pieces":<n>,"nb_chambres":<n>,"etat_global":"<etat>","score_global":<1-10>,"style_dominant":"<style>","dpe_estime":"<A-G>","points_forts":["top5"],"points_faibles":["defauts"],"defauts_critiques":["bloquants"],"travaux_urgents":["urgents"],"travaux_valorisants":["valorisants"],"budget_travaux_estime":"<fourchette>","suggestions_retouche_globales":["retouches"],"profil_acheteur":"<profil>","fourchette_prix_basse":<n>,"fourchette_prix_haute":<n>,"conseil_mise_en_vente":"2 phrases","pense_betes":["notes visites et negociations"]}`;
 };
 
 const LANG_INSTRUCTIONS = {
-  fr: "Tu es un rédacteur immobilier expert. Rédige TOUT en français uniquement. Aucun mot dans une autre langue.",
+  fr: "Tu es un redacteur immobilier expert. Redige TOUT en francais uniquement. Aucun mot dans une autre langue.",
   en: "You are an expert real estate copywriter. Write EVERYTHING in English only. No French, no German. Full paragraphs, rich vocabulary.",
-  de: "Du bist ein Immobilien-Texter. Schreibe ALLES auf Deutsch. Kein Französisch, kein Englisch. Vollständige Absätze, reichhaltig.",
-  lu: "Dir sidd en Immobilien-Texter. Schreift ALLES op Lëtzebuergesch. Kee Franséisch, keen Daitsch. Lëtzebuergesch Wierder: Haus, Wunnung, Schlofzëmmer, Kichen, Gaart, Terrass, Präis, Zëmmer, Hell, Grouss, Schéin, Roueg. Vollstänneg Absätz.",
+  de: "Du bist ein Immobilien-Texter. Schreibe ALLES auf Deutsch. Kein Franzosisch, kein Englisch. Vollstandige Absatze, reichhaltig.",
+  lu: "Dir sidd en Immobilien-Texter. Schreift ALLES op Letzebuergesch. Kee Franseisch, keen Daitsch. Letzebuergesch Wierder: Haus, Wunnung, Schlofzemmer, Kichen, Gaart, Terrass, Prais, Zemmer, Hell, Grouss, Schein, Roueg. Vollstanneg Absatz.",
   nl: "U bent een vastgoed-copywriter. Schrijf ALLES in het Nederlands (Belgisch). Geen Frans, geen Duits. Volledige paragrafen, rijke woordenschat.",
 };
 
@@ -322,7 +322,7 @@ const aPrompt = (synth, meta, lang, profil={}, includeAI=false) => {
     : "";
   const terrainInfo = meta.terrain ? `Terrain: ${meta.terrain}m2` : "";
 
-  // Constatations IA photos — incluses seulement si case cochée
+  // Constatations IA photos -- incluses seulement si case cochee
   const aiFindings = includeAI && synth ? `
 OBSERVATIONS PHOTOS (a integrer subtilement):
 - Etat observe: ${synth.etat_global||"NC"}
@@ -351,7 +351,7 @@ JSON:
 {"titre_principal":"max 80 chars","titre_court":"max 60 chars","description_courte":"120-150 mots en 2 paragraphes","description_longue":"280-320 mots en 4 paragraphes","points_cles":["5 points concis"],"tags":["mots-cles SEO"],"avertissement_dpe":${["F","G"].includes(meta.dpe)?'"Passoire thermique - travaux energetiques recommandes"':"null"}}`;
 };
 
-// ── API ───────────────────────────────────────────────
+// -- API -----------------------------------------------
 async function callClaude(messages, system, max=1500) {
   const ctrl=new AbortController(), tid=setTimeout(()=>ctrl.abort(),60000);
   try {
@@ -374,7 +374,7 @@ async function callClaude(messages, system, max=1500) {
     try{return JSON.parse(text.replace(/```json\n?|\n?```/g,"").trim());}
     catch{return{error:"Parse failed",raw:text.slice(0,200)};}
   } catch(e){
-    if(e.name==="AbortError")throw new Error("Timeout — réessayez");
+    if(e.name==="AbortError")throw new Error("Timeout -- reessayez");
     throw e;
   } finally{clearTimeout(tid);}
 }
@@ -383,7 +383,7 @@ async function callClaude(messages, system, max=1500) {
 function toB64(file) {
   return new Promise((res, rej) => {
     const img = new Image();
-    img.crossOrigin = "anonymous"; // B04: évite canvas taint
+    img.crossOrigin = "anonymous"; // B04: evite canvas taint
     const url = URL.createObjectURL(file);
     img.onload = () => {
       URL.revokeObjectURL(url);
@@ -402,7 +402,7 @@ function toB64(file) {
         if (!b64) throw new Error("Canvas vide");
         res({ b64, mediaType: "image/jpeg" });
       } catch(canvasErr) {
-        // B14: Fallback FileReader si canvas échoue (SecurityError)
+        // B14: Fallback FileReader si canvas echoue (SecurityError)
         const reader = new FileReader();
         reader.onload = () => {
           const b = reader.result?.split(",")[1] ?? "";
@@ -439,7 +439,7 @@ async function urlToB64(url) {
   }
 }
 
-// ── STYLES ────────────────────────────────────────────
+// -- STYLES --------------------------------------------
 const C={bg:"#080812",surf:"#0E0E1C",brd:"#1A1A2E",acc:"#7C6FFF",gold:"#C8A97E",
   green:"#4AE88A",text:"#E8E6FF",muted:"#888",err:"#E84A4A"};
 const inp={width:"100%",background:C.surf,border:`1px solid ${C.brd}`,borderRadius:8,
@@ -447,7 +447,7 @@ const inp={width:"100%",background:C.surf,border:`1px solid ${C.brd}`,borderRadi
 const btn=(bg,col="#fff",x={})=>({padding:"11px 18px",borderRadius:9,fontSize:13,fontWeight:700,
   border:"none",cursor:"pointer",background:bg,color:col,transition:"all 0.2s",fontFamily:"inherit",...x});
 
-// ── COMPOSANTS ────────────────────────────────────────
+// -- COMPOSANTS ----------------------------------------
 function DPE({dpe}){
   const valid=dpe&&dpe.length===1&&DPE_C[dpe];
   if(!valid)return null;
@@ -514,7 +514,7 @@ function Steps({current,L}){
                 background:active?C.acc:done?C.green+"30":C.surf,
                 border:`2px solid ${active?C.acc:done?C.green:C.brd}`,
                 boxShadow:active?`0 0 12px ${C.acc}50`:"none",transition:"all 0.3s"}}>
-                {done?"✓":L.icons[i]}
+                {done?"OK":L.icons[i]}
               </div>
               <span style={{fontSize:9,color:active?C.acc:done?C.green:"#444",
                 whiteSpace:"nowrap",textAlign:"center"}}>{label}</span>
@@ -528,9 +528,9 @@ function Steps({current,L}){
   );
 }
 
-// ══════════════════════════════════════════════════════
-// LOGIN — avec système de comptes
-// ══════════════════════════════════════════════════════
+// ======================================================
+// LOGIN -- avec systeme de comptes
+// ======================================================
 function Login({onOk}){
   const [pwd,setPwd]=useState(""),[err,setErr]=useState(false),[shake,setShake]=useState(false);
   const [users]=useState(()=>getUsers());
@@ -538,7 +538,7 @@ function Login({onOk}){
   useEffect(()=>{ref.current?.focus();},[]);
 
   function go(){
-    // Vérifier dans la liste des utilisateurs
+    // Verifier dans la liste des utilisateurs
     const user = users.find(u=>u.password===pwd);
     if(user){
       sessionStorage.setItem("zaymmo_auth","1");
@@ -592,7 +592,7 @@ function Login({onOk}){
               <rect x="26" y="54" width="48" height="30" fill="none" stroke="url(#zLogin)" strokeWidth="2"/>
               {/* Porte arrondie */}
               <rect x="40" y="66" width="20" height="18" rx="10" fill="url(#zLogin)" opacity="0.85"/>
-              {/* Fenêtres */}
+              {/* Fenetres */}
               <rect x="30" y="58" width="12" height="12" rx="2" fill="#4AE88A" opacity="0.5"/>
               <rect x="30" y="58" width="12" height="12" rx="2" fill="none" stroke="#4AE88A" strokeWidth="1"/>
               <rect x="58" y="58" width="12" height="12" rx="2" fill="#4AE88A" opacity="0.5"/>
@@ -600,7 +600,7 @@ function Login({onOk}){
               {/* Orbite drone */}
               <ellipse cx="50" cy="40" rx="30" ry="10" fill="none" stroke="#4AE88A" strokeWidth="0.8" strokeDasharray="4,4" opacity="0.3"/>
             </svg>
-            {/* Drone flottant doucement — pas d'orbite */}
+            {/* Drone flottant doucement -- pas d'orbite */}
             <div style={{position:"absolute",top:8,right:4,
               animation:"floatDrone 3s ease-in-out infinite"}}>
               <svg width="26" height="20" viewBox="0 0 22 16">
@@ -623,39 +623,39 @@ function Login({onOk}){
             WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",
             fontFamily:"Georgia,serif"}}>ZAYMMO</div>
           <div style={{fontSize:11,color:"#555",letterSpacing:4,marginTop:6,fontFamily:"system-ui"}}>
-            AI · VISION · IMMOBILIER
+            AI . VISION . IMMOBILIER
           </div>
         </div>
         <div style={{background:C.surf,borderRadius:16,border:`1px solid ${C.brd}`,
           padding:"28px 24px",animation:shake?"shake 0.5s ease":"none"}}>
           <div style={{fontSize:14,color:"#888",marginBottom:20,textAlign:"center"}}>
-            Accès sécurisé — entrez le mot de passe
+            Acces securise -- entrez le mot de passe
           </div>
           <input ref={ref} type="password" value={pwd}
             onChange={e=>{setPwd(e.target.value);setErr(false);}}
             onKeyDown={e=>e.key==="Enter"&&go()}
-            placeholder="••••••••••"
+            placeholder=""
             style={{...inp,letterSpacing:4,textAlign:"center",marginBottom:12,
               border:`1px solid ${err?"#E84A4A":C.brd}`,fontSize:18,outline:"none"}}/>
           {err&&<div style={{fontSize:12,color:"#E84A4A",textAlign:"center",marginBottom:12}}>
-            ❌ Mot de passe incorrect
+             Mot de passe incorrect
           </div>}
           <button onClick={go} style={{...btn("linear-gradient(135deg,#7C6FFF,#4AE88A)"),
             width:"100%",padding:14,fontSize:14,boxShadow:"0 4px 20px #7C6FFF40"}}>
-            Accéder à Zaymmo →
+            Acceder a Zaymmo ->
           </button>
         </div>
         <div style={{textAlign:"center",marginTop:14,fontSize:11,color:"#222"}}>
-          Accès réservé — usage professionnel
+          Acces reserve -- usage professionnel
         </div>
       </div>
     </div>
   );
 }
 
-// ══════════════════════════════════════════════════════
+// ======================================================
 // APP
-// ══════════════════════════════════════════════════════
+// ======================================================
 export default function App(){
   const [auth,setAuth]=useState(()=>sessionStorage.getItem("zaymmo_auth")==="1");
   const [currentUser,setCurrentUser]=useState(()=>getSession());
@@ -698,7 +698,7 @@ function Zaymmo({currentUser, onLogout}){
   const [selectedLangs,setSelectedLangs]=useState({fr:true,en:false,de:false,lu:false,nl:false});
   const [annonces,setAnnonces]=useState({});
   const [activeLang,setActiveLang]=useState("fr");
-  // Case à cocher — inclure constatations IA photos dans l'annonce
+  // Case a cocher -- inclure constatations IA photos dans l'annonce
   const [includeAIFindings,setIncludeAIFindings]=useState(false);
 
   const fileRef=useRef(null),mountedRef=useRef(true);
@@ -708,10 +708,10 @@ function Zaymmo({currentUser, onLogout}){
     // PAYS EN PREMIER
     pays:"fr",
     type:"Appartement",adresse:"",ville:"",surface:"",pieces:"",chambres:"",
-    terrain:"", // m² de terrain (maisons, villas...)
+    terrain:"", // m2 de terrain (maisons, villas...)
     etage:"",annee:"",prix:"",charges:"",
-    dpe:"Non renseigné",ges:"Non renseigné",
-    chauffage:"Collectif gaz",exposition:"Non renseignée",
+    dpe:"Non renseigne",ges:"Non renseigne",
+    chauffage:"Collectif gaz",exposition:"Non renseignee",
     devise:"EUR",langAnnonce:"fr",
     cave:false,parking:false,terrasse:false,balcon:false,jardin:false,
     ascenseur:false,double_vitrage:false,fibre:false,piscine:false,
@@ -726,7 +726,7 @@ function Zaymmo({currentUser, onLogout}){
   const setP=(k,v)=>setProfil(p=>({...p,[k]:v}));
   const [profilOpen,setProfilOpen]=useState(false);
   const setM=(k,v)=>setMeta(m=>({...m,[k]:v}));
-  const dev=CURRENCIES[meta.devise]||"€";
+  const dev=CURRENCIES[meta.devise]||"";
 
   // Upload URL multi
   async function addUrls(){
@@ -773,14 +773,14 @@ function Zaymmo({currentUser, onLogout}){
       for(let i=0;i<photos.length;i++){
         const ph=photos[i];
         if(!mountedRef.current)break;
-        setLoadMsg(`${L.analysing} ${i+1}/${photos.length} — ${ph.roomType}`);
+        setLoadMsg(`${L.analysing} ${i+1}/${photos.length} -- ${ph.roomType}`);
         setPhotos(p=>p.map(x=>x.id===ph.id?{...x,status:"analyzing"}:x));
         try{
           let b64data;
           if(ph.file){
             b64data = await toB64(ph.file); // Fichier galerie
           } else {
-            b64data = await urlToB64(ph.url); // B03: URL → base64 via fetch
+            b64data = await urlToB64(ph.url); // B03: URL -> base64 via fetch
           }
           const content=[
             {type:"image",source:{type:"base64",media_type:b64data.mediaType,data:b64data.b64}},
@@ -799,7 +799,7 @@ function Zaymmo({currentUser, onLogout}){
         await sleep(200);
       }
       if(mountedRef.current&&results.filter(r=>!r.error).length>0){
-        setLoadMsg("Synthèse globale…");setProg(88);setError(null);
+        setLoadMsg("Synthese globale...");setProg(88);setError(null);
         try{
           const s=await callClaude([{role:"user",content:sPrompt(results,meta)}],
             "Expert immobilier. JSON valide uniquement sans backticks.");
@@ -823,21 +823,21 @@ function Zaymmo({currentUser, onLogout}){
             saveHistory(newHistory);
             setHistory(newHistory);
           }
-        }catch(e){if(mountedRef.current)setError("Erreur synthèse: "+e.message);}
+        }catch(e){if(mountedRef.current)setError("Erreur synthese: "+e.message);}
       } else if(results.length>0&&results.every(r=>r.error)){
-        if(mountedRef.current)setError("Toutes les photos ont échoué — vérifiez votre connexion");
+        if(mountedRef.current)setError("Toutes les photos ont echoue -- verifiez votre connexion");
       }
-    } finally { // B06: toujours libérer le loading
+    } finally { // B06: toujours liberer le loading
       if(mountedRef.current){setLoading(false);setLoadMsg("");}
     }
   }
 
   async function genAnnonce(){
     if(!synth){setError("Lance d'abord l'analyse");return;}
-    setLoading(true);setLoadMsg("Rédaction…");setStep("annonce");
+    setLoading(true);setLoadMsg("Redaction...");setStep("annonce");
     try{
       const a=await callClaude([{role:"user",content:aPrompt(synth,meta,meta.langAnnonce,profil,includeAIFindings)}],
-        "Rédacteur immobilier expert. JSON valide uniquement sans backticks.",1500);
+        "Redacteur immobilier expert. JSON valide uniquement sans backticks.",1500);
       if(mountedRef.current){
         setAnnonce(a);
         setAnnonces(prev=>({...prev,[meta.langAnnonce]:a}));
@@ -847,22 +847,22 @@ function Zaymmo({currentUser, onLogout}){
     finally{if(mountedRef.current){setLoading(false);setLoadMsg("");}}
   }
 
-  // Génération multi-langues simultanée
+  // Generation multi-langues simultanee
   async function genMultiLang(){
     if(!synth){setError("Lance d'abord l'analyse");return;}
     const langs=Object.entries(selectedLangs).filter(([,v])=>v).map(([k])=>k);
     if(!langs.length){setError("Coche au moins une langue");return;}
     setLoading(true);setStep("annonce");
-    const flags={fr:"🇫🇷",en:"🇬🇧",de:"🇩🇪",lu:"🇱🇺",nl:"🇧🇪"};
+    const flags={fr:"FR",en:"GB",de:"DE",lu:"LU",nl:"BE"};
     const results={...annonces};
     for(let i=0;i<langs.length;i++){
       const lg=langs[i];
-      if(results[lg]) continue; // déjà générée → skip
-      setLoadMsg(`${flags[lg]} Rédaction ${lg.toUpperCase()} — ${i+1}/${langs.length}`);
+      if(results[lg]) continue; // deja generee -> skip
+      setLoadMsg(`${flags[lg]} Redaction ${lg.toUpperCase()} -- ${i+1}/${langs.length}`);
       try{
         const a=await callClaude(
           [{role:"user",content:aPrompt(synth,meta,lg,profil,includeAIFindings)}],
-          "Rédacteur immobilier expert. JSON valide uniquement sans backticks.",1500
+          "Redacteur immobilier expert. JSON valide uniquement sans backticks.",1500
         );
         results[lg]=a;
         if(mountedRef.current)setAnnonces({...results});
@@ -877,11 +877,11 @@ function Zaymmo({currentUser, onLogout}){
 
   async function applyRev(){
     if(!revInstr.trim()||!annonce)return;
-    setLoading(true);setLoadMsg("Révision…");
+    setLoading(true);setLoadMsg("Revision...");
     try{
       const r=await callClaude([{role:"user",
         content:`TEXTE:\n"""\n${annonce.description_longue}\n"""\nINSTRUCTION: ${revInstr}\nJSON: {"description_longue":"..."}`}],
-        "Éditeur immobilier. Modifie UNIQUEMENT ce qui est demandé. JSON sans backticks.");
+        "Editeur immobilier. Modifie UNIQUEMENT ce qui est demande. JSON sans backticks.");
       if(r.description_longue&&mountedRef.current){
         setRevHist(h=>[...h,annonce]);
         setAnnonce(a=>({...a,description_longue:r.description_longue}));
@@ -895,22 +895,22 @@ function Zaymmo({currentUser, onLogout}){
     if(!annonce)return;
     const t=annonce.titre_court||annonce.titre_principal;
     const d=annonce.description_longue;
-    const txt=`${t}\n\n${d}\n\n${(annonce.points_cles||[]).map(p=>`• ${p}`).join("\n")}`;
+    const txt=`${t}\n\n${d}\n\n${(annonce.points_cles||[]).map(p=>` ${p}`).join("\n")}`;
     try{await navigator.clipboard.writeText(txt);}
     catch{const ta=document.createElement("textarea");ta.value=txt;
       document.body.appendChild(ta);ta.select();document.execCommand("copy");document.body.removeChild(ta);}
     setCopied(true);setTimeout(()=>{if(mountedRef.current)setCopied(false);},2500);
   }
 
-  // ── IMPRESSION FICHE PRO (interne) ───────────────────
+  // -- IMPRESSION FICHE PRO (interne) -------------------
   function printPro(){
     if(!synth||!annonce)return;
-    const dev=CURRENCIES[meta.devise]||"€";
+    const dev=CURRENCIES[meta.devise]||"";
     const photoUrls=photos.filter(p=>p.preview).slice(0,6).map(p=>p.preview);
     const win=window.open("","_blank");
     win.document.write(`<!DOCTYPE html><html><head>
 <meta charset="UTF-8">
-<title>Zaymmo — Fiche Pro — ${meta.ville||"Bien"}</title>
+<title>Zaymmo -- Fiche Pro -- ${meta.ville||"Bien"}</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:Arial,sans-serif;font-size:11px;color:#1A1A2E;padding:20px}
@@ -940,15 +940,15 @@ function Zaymmo({currentUser, onLogout}){
 <div class="header">
   <div>
     <div class="logo">ZAYMMO</div>
-    <div style="font-size:9px;color:#AAA;letter-spacing:2px">AI · VISION · IMMOBILIER</div>
+    <div style="font-size:9px;color:#AAA;letter-spacing:2px">AI . VISION . IMMOBILIER</div>
     <div style="margin-top:6px;font-size:10px;color:#555">
-      Analysé le ${new Date().toLocaleDateString("fr-FR")} · Par ${currentUser?.name||"Admin"}
+      Analyse le ${new Date().toLocaleDateString("fr-FR")} . Par ${currentUser?.name||"Admin"}
     </div>
   </div>
   <div style="text-align:right">
     <div class="score-big">${synth.score_global||"?"}/10</div>
     <div style="font-size:10px;color:#555">${synth.etat_global||"NC"}</div>
-    <div class="badge" style="margin-top:4px">CONFIDENTIEL — INTERNE</div>
+    <div class="badge" style="margin-top:4px">CONFIDENTIEL -- INTERNE</div>
   </div>
 </div>
 
@@ -957,14 +957,14 @@ ${photoUrls.length>0?`<div class="photos">${photoUrls.map(u=>`<img src="${u}" al
 <h2>INFORMATIONS DU BIEN</h2>
 <div class="grid3">
   <div class="info-block"><div class="label">TYPE</div><div class="value">${meta.type}</div></div>
-  <div class="info-block"><div class="label">SURFACE</div><div class="value">${synth.surface_totale_estimee||meta.surface||"NC"} m²${meta.terrain?` + ${meta.terrain}m² terrain`:""}</div></div>
-  <div class="info-block"><div class="label">PRIX</div><div class="value">${meta.prix?Number(meta.prix).toLocaleString()+" "+dev:synth.fourchette_prix_basse?synth.fourchette_prix_basse.toLocaleString()+"–"+synth.fourchette_prix_haute.toLocaleString()+" "+dev:"NC"}</div></div>
+  <div class="info-block"><div class="label">SURFACE</div><div class="value">${synth.surface_totale_estimee||meta.surface||"NC"} m2${meta.terrain?` + ${meta.terrain}m2 terrain`:""}</div></div>
+  <div class="info-block"><div class="label">PRIX</div><div class="value">${meta.prix?Number(meta.prix).toLocaleString()+" "+dev:synth.fourchette_prix_basse?synth.fourchette_prix_basse.toLocaleString()+"-"+synth.fourchette_prix_haute.toLocaleString()+" "+dev:"NC"}</div></div>
   <div class="info-block"><div class="label">VILLE</div><div class="value">${meta.ville||"NC"}</div></div>
   <div class="info-block"><div class="label">DPE / GES</div><div class="value">${meta.dpe} / ${meta.ges||"NC"}</div></div>
   <div class="info-block"><div class="label">CHAUFFAGE</div><div class="value">${meta.chauffage}</div></div>
-  <div class="info-block"><div class="label">PIÈCES / CHAMBRES</div><div class="value">${meta.pieces||"NC"} / ${meta.chambres||"NC"}</div></div>
-  <div class="info-block"><div class="label">ÉTAGE</div><div class="value">${meta.etage||"NC"}</div></div>
-  <div class="info-block"><div class="label">ANNÉE</div><div class="value">${meta.annee||"NC"}</div></div>
+  <div class="info-block"><div class="label">PIECES / CHAMBRES</div><div class="value">${meta.pieces||"NC"} / ${meta.chambres||"NC"}</div></div>
+  <div class="info-block"><div class="label">ETAGE</div><div class="value">${meta.etage||"NC"}</div></div>
+  <div class="info-block"><div class="label">ANNEE</div><div class="value">${meta.annee||"NC"}</div></div>
 </div>
 
 <h2>ESTIMATION IA</h2>
@@ -974,20 +974,20 @@ ${photoUrls.length>0?`<div class="photos">${photoUrls.map(u=>`<img src="${u}" al
     <ul>${(synth.points_forts||[]).map(p=>`<li><span class="plus">+</span>${p}</li>`).join("")}</ul>
   </div>
   <div>
-    <h3>Défauts détectés</h3>
+    <h3>Defauts detectes</h3>
     <ul>${(synth.points_faibles||[]).map(p=>`<li><span class="minus">!</span>${p}</li>`).join("")}
     ${(synth.defauts_critiques||[]).map(p=>`<li><span class="minus">!!</span><strong>${p}</strong> [CRITIQUE]</li>`).join("")}</ul>
   </div>
 </div>
 
-<h2>TRAVAUX RECOMMANDÉS</h2>
+<h2>TRAVAUX RECOMMANDES</h2>
 <div class="grid2">
   <div><h3>Urgents</h3><ul>${(synth.travaux_urgents||[]).map(t=>`<li>${t}</li>`).join("")||"<li>Aucun</li>"}</ul></div>
   <div><h3>Valorisants</h3><ul>${(synth.travaux_valorisants||[]).map(t=>`<li>${t}</li>`).join("")||"<li>Aucun</li>"}</ul></div>
 </div>
-<div class="note">Budget travaux estimé : ${synth.budget_travaux_estime||"NC"} · Profil acheteur : ${synth.profil_acheteur||"NC"}</div>
+<div class="note">Budget travaux estime : ${synth.budget_travaux_estime||"NC"} . Profil acheteur : ${synth.profil_acheteur||"NC"}</div>
 
-<h2>PENSE-BÊTES VISITES</h2>
+<h2>PENSE-BETES VISITES</h2>
 <ul>${(synth.pense_betes||[]).map((p,i)=>`<li>${i+1}. ${p}</li>`).join("")||"<li>Aucun</li>"}</ul>
 
 <h2>HOME STAGING</h2>
@@ -997,28 +997,28 @@ ${photoUrls.length>0?`<div class="photos">${photoUrls.map(u=>`<img src="${u}" al
 <div class="note">${synth.conseil_mise_en_vente||"NC"}</div>
 
 <div class="footer">
-  <span>Zaymmo — Fiche interne confidentielle</span>
-  <span>${meta.ville||"NC"} · ${new Date().toLocaleDateString("fr-FR")}</span>
-  <span>Usage réservé au professionnel</span>
+  <span>Zaymmo -- Fiche interne confidentielle</span>
+  <span>${meta.ville||"NC"} . ${new Date().toLocaleDateString("fr-FR")}</span>
+  <span>Usage reserve au professionnel</span>
 </div>
 
 <div class="no-print" style="text-align:center;margin-top:20px">
-  <button onclick="window.print()" style="background:#7C6FFF;color:white;border:none;padding:12px 28px;border-radius:8px;font-size:14px;cursor:pointer">🖨️ Imprimer</button>
+  <button onclick="window.print()" style="background:#7C6FFF;color:white;border:none;padding:12px 28px;border-radius:8px;font-size:14px;cursor:pointer"> Imprimer</button>
 </div>
 </body></html>`);
     win.document.close();
     setTimeout(()=>win.print(),500);
   }
 
-  // ── IMPRESSION FICHE CLIENT (présentation visite) ───
+  // -- IMPRESSION FICHE CLIENT (presentation visite) ---
   function printClient(){
     if(!annonce)return;
-    const dev=CURRENCIES[meta.devise]||"€";
+    const dev=CURRENCIES[meta.devise]||"";
     const photoUrls=photos.filter(p=>p.preview).slice(0,3).map(p=>p.preview);
     const win=window.open("","_blank");
     win.document.write(`<!DOCTYPE html><html><head>
 <meta charset="UTF-8">
-<title>Zaymmo — ${annonce.titre_court||"Présentation bien"}</title>
+<title>Zaymmo -- ${annonce.titre_court||"Presentation bien"}</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:Arial,sans-serif;font-size:12px;color:#1A1A2E;padding:24px}
@@ -1044,7 +1044,7 @@ ${photoUrls.length>0?`<div class="photos">${photoUrls.map(u=>`<img src="${u}" al
 <div class="header">
   <div>
     <div class="logo">ZAYMMO</div>
-    <div style="font-size:9px;color:#AAA;letter-spacing:2px">AI · VISION · IMMOBILIER</div>
+    <div style="font-size:9px;color:#AAA;letter-spacing:2px">AI . VISION . IMMOBILIER</div>
   </div>
   <div style="text-align:right">
     <div class="prix">${meta.prix?Number(meta.prix).toLocaleString()+" "+dev:synth?.fourchette_prix_basse?synth.fourchette_prix_basse.toLocaleString()+" "+dev:"Prix sur demande"}</div>
@@ -1053,13 +1053,13 @@ ${photoUrls.length>0?`<div class="photos">${photoUrls.map(u=>`<img src="${u}" al
 </div>
 
 <h1>${annonce.titre_principal||annonce.titre_court||"Bien immobilier"}</h1>
-<div style="color:#888;font-size:11px;margin-bottom:16px">${meta.ville||""}${meta.ville&&meta.pays?" · ":""}</div>
+<div style="color:#888;font-size:11px;margin-bottom:16px">${meta.ville||""}${meta.ville&&meta.pays?" . ":""}</div>
 
 ${photoUrls.length>0?`<div class="photos">${photoUrls.map(u=>`<img src="${u}" alt="photo"/>`).join("")}</div>`:""}
 
 <div class="infos">
-  <div class="info"><div class="info-label">SURFACE</div><div class="info-val">${synth?.surface_totale_estimee||meta.surface||"NC"} m²</div></div>
-  <div class="info"><div class="info-label">PIÈCES</div><div class="info-val">${synth?.nb_pieces||meta.pieces||"NC"}</div></div>
+  <div class="info"><div class="info-label">SURFACE</div><div class="info-val">${synth?.surface_totale_estimee||meta.surface||"NC"} m2</div></div>
+  <div class="info"><div class="info-label">PIECES</div><div class="info-val">${synth?.nb_pieces||meta.pieces||"NC"}</div></div>
   <div class="info"><div class="info-label">CHAMBRES</div><div class="info-val">${synth?.nb_chambres||meta.chambres||"NC"}</div></div>
   <div class="info"><div class="info-label">DPE</div><div class="info-val"><span class="dpe">${meta.dpe?.length===1?meta.dpe:synth?.dpe_estime||"NC"}</span></div></div>
 </div>
@@ -1067,38 +1067,38 @@ ${photoUrls.length>0?`<div class="photos">${photoUrls.map(u=>`<img src="${u}" al
 <h2>Description</h2>
 <div class="desc">${annonce.description_longue||annonce.description_courte||"NC"}</div>
 
-${annonce.points_cles?.length>0?`<div>${annonce.points_cles.map(p=>`<span class="tag">✓ ${p}</span>`).join("")}</div>`:""}
+${annonce.points_cles?.length>0?`<div>${annonce.points_cles.map(p=>`<span class="tag">OK ${p}</span>`).join("")}</div>`:""}
 
-<h2>Équipements</h2>
-<div>${[...L.equip,["cellier","📦 Cellier"],["buanderie","🫧 Buanderie"]].filter(([k])=>meta[k]).map(([,l])=>`<span class="tag">${l}</span>`).join("")||"Standard"}</div>
+<h2>Equipements</h2>
+<div>${[...L.equip,["cellier"," Cellier"],["buanderie"," Buanderie"]].filter(([k])=>meta[k]).map(([,l])=>`<span class="tag">${l}</span>`).join("")||"Standard"}</div>
 
 ${annonce.avertissement_dpe?`<div style="background:#FFF0F0;border:1px solid #FFCCCC;border-radius:4px;padding:8px;margin-top:12px;font-size:10px;color:#CC0000">${annonce.avertissement_dpe}</div>`:""}
 
 ${profil.nomAgence?`<div class="contact">
-  <div style="font-weight:700;font-size:13px;margin-bottom:6px">📞 Nous contacter</div>
+  <div style="font-weight:700;font-size:13px;margin-bottom:6px"> Nous contacter</div>
   <div style="font-weight:700;color:#7C6FFF">${profil.nomAgence}</div>
   ${profil.nomAgent?`<div>${profil.nomAgent}</div>`:""}
-  ${profil.telephone?`<div>📞 ${profil.telephone}</div>`:""}
-  ${profil.email?`<div>📧 ${profil.email}</div>`:""}
-  ${profil.siteWeb?`<div>🌐 ${profil.siteWeb}</div>`:""}
+  ${profil.telephone?`<div> ${profil.telephone}</div>`:""}
+  ${profil.email?`<div> ${profil.email}</div>`:""}
+  ${profil.siteWeb?`<div> ${profil.siteWeb}</div>`:""}
 </div>`:""}
 
 <div class="footer">
-  <span>Zaymmo — Document de présentation</span>
+  <span>Zaymmo -- Document de presentation</span>
   <span>${new Date().toLocaleDateString("fr-FR")}</span>
   <span>Informations non contractuelles</span>
 </div>
 
 <div class="no-print" style="text-align:center;margin-top:20px;display:flex;gap:10px;justify-content:center">
-  <button onclick="window.print()" style="background:#7C6FFF;color:white;border:none;padding:12px 28px;border-radius:8px;font-size:14px;cursor:pointer">🖨️ Imprimer</button>
-  <button onclick="window.close()" style="background:#EEE;color:#333;border:none;padding:12px 24px;border-radius:8px;font-size:14px;cursor:pointer">✕ Fermer</button>
+  <button onclick="window.print()" style="background:#7C6FFF;color:white;border:none;padding:12px 28px;border-radius:8px;font-size:14px;cursor:pointer"> Imprimer</button>
+  <button onclick="window.close()" style="background:#EEE;color:#333;border:none;padding:12px 24px;border-radius:8px;font-size:14px;cursor:pointer"> Fermer</button>
 </div>
 </body></html>`);
     win.document.close();
     setTimeout(()=>win.print(),500);
   }
 
-  // ── ADMIN — créer utilisateur ─────────────────────────
+  // -- ADMIN -- creer utilisateur -------------------------
   function createUser(){
     if(!newUserName.trim()||!newUserPwd.trim())return;
     const newUser={
@@ -1128,15 +1128,15 @@ ${profil.nomAgence?`<div class="contact">
   function downloadFiche(){
     if(!synth||!annonce)return;
     const date=new Date().toLocaleDateString("fr-FR");
-    // Bug 1 fix: utiliser BOM UTF-8 pour compatibilité Windows + supprimer emojis
+    // Bug 1 fix: utiliser BOM UTF-8 pour compatibilite Windows + supprimer emojis
     const sep1 = "=".repeat(50);
     const sep2 = "-".repeat(30);
     const lines=[
-      `FICHE INTERNE — ZAYMMO`,
+      `FICHE INTERNE -- ZAYMMO`,
       `Generee le ${date}`,
       sep1,
       ``,
-      `BIEN: ${meta.type} — ${meta.ville||"NC"}`,
+      `BIEN: ${meta.type} -- ${meta.ville||"NC"}`,
       `Surface: ${synth.surface_totale_estimee||meta.surface||"NC"} m2`,
       `Pieces: ${synth.nb_pieces||meta.pieces||"NC"} dont ${synth.nb_chambres||meta.chambres||"NC"} chambres`,
       `Etage: ${meta.etage||"NC"} | Annee: ${meta.annee||"NC"}`,
@@ -1160,11 +1160,11 @@ ${profil.nomAgence?`<div class="contact">
       ...(meta.buanderie?["- Buanderie"]:[]),
       ``,
       `EVALUATION IA`,sep2,
-      `Score: ${synth.score_global}/10 — ${synth.etat_global}`,
+      `Score: ${synth.score_global}/10 -- ${synth.etat_global}`,
       `Profil acheteur: ${synth.profil_acheteur||"NC"}`,
       `Style: ${synth.style_dominant||"NC"}`,
       synth.fourchette_prix_basse
-        ?`Estimation: ${synth.fourchette_prix_basse.toLocaleString()} – ${synth.fourchette_prix_haute.toLocaleString()} ${dev}`
+        ?`Estimation: ${synth.fourchette_prix_basse.toLocaleString()} - ${synth.fourchette_prix_haute.toLocaleString()} ${dev}`
         :`Estimation: NC`,
       `Budget travaux: ${synth.budget_travaux_estime||"NC"}`,
       ``,
@@ -1196,14 +1196,14 @@ ${profil.nomAgence?`<div class="contact">
       annonce.description_longue||"NC",
       ``,
       sep1,
-      `MENTIONS LEGALES — ${(COUNTRIES[meta.pays]||"France").replace(/[^\x20-\x7E\u00C0-\u024F]/g,"")}`,
+      `MENTIONS LEGALES -- ${(COUNTRIES[meta.pays]||"France").replace(/[^\x20-\x7E\u00C0-\u024F]/g,"")}`,
       sep2,
       (LEGAL[meta.pays]||LEGAL.fr),
       ``,
       sep1,
-      `Zaymmo — AI Vision Immobilier — Usage interne uniquement — ${date}`,
+      `Zaymmo -- AI Vision Immobilier -- Usage interne uniquement -- ${date}`,
     ];
-    // BOM UTF-8 pour compatibilité Windows/Android
+    // BOM UTF-8 pour compatibilite Windows/Android
     const content = "\uFEFF" + lines.join("\r\n");
     const blob=new Blob([content],{type:"text/plain;charset=utf-8"});
     const url=URL.createObjectURL(blob);
@@ -1218,11 +1218,11 @@ ${profil.nomAgence?`<div class="contact">
   const canRun=photos.length>0&&!loading&&!!API_KEY;
   const DPE_VALID = ["A","B","C","D","E","F","G"];
 
-  // Changer pays plateforme → auto-langue
+  // Changer pays plateforme -> auto-langue
   function changePlatCountry(country) {
     setPC(country);
     setPlat(PLATFORMS[country][0].id);
-    // Générer annonce dans la langue du pays si pas encore disponible
+    // Generer annonce dans la langue du pays si pas encore disponible
     const targetLang = PLATFORM_LANG[country]||"fr";
     if (synth && !annonces[targetLang]) {
       setM("langAnnonce", targetLang);
@@ -1233,14 +1233,14 @@ ${profil.nomAgence?`<div class="contact">
     }
   }
 
-  // Générer annonce pour une langue spécifique
+  // Generer annonce pour une langue specifique
   async function genAnnonceForLang(lg) {
     if (!synth) return;
-    setLoading(true); setLoadMsg(`Rédaction ${lg}…`);
+    setLoading(true); setLoadMsg(`Redaction ${lg}...`);
     try {
       const a = await callClaude(
         [{role:"user",content:aPrompt(synth,meta,lg,profil,includeAIFindings)}],
-        "Rédacteur immobilier expert. JSON valide uniquement sans backticks.",1500
+        "Redacteur immobilier expert. JSON valide uniquement sans backticks.",1500
       );
       if (mountedRef.current) {
         setAnnonces(prev=>({...prev,[lg]:a}));
@@ -1272,7 +1272,7 @@ ${profil.nomAgence?`<div class="contact">
         flexShrink:0,display:"flex",alignItems:"center",justifyContent:"space-between",
         gap:8,flexWrap:"wrap"}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          {/* LOGO ZAYMMO — Maison + Drone flottant */}
+          {/* LOGO ZAYMMO -- Maison + Drone flottant */}
           <div style={{display:"flex",alignItems:"center",gap:10}}>
             <div style={{position:"relative",width:42,height:42,flexShrink:0}}>
               <svg width="42" height="42" viewBox="0 0 44 44"
@@ -1318,7 +1318,7 @@ ${profil.nomAgence?`<div class="contact">
                 background:"linear-gradient(90deg,#7C6FFF,#4AE88A)",
                 WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",
                 fontFamily:"Georgia,serif"}}>ZAYMMO</div>
-              <div style={{fontSize:8,color:"#444",letterSpacing:2}}>AI · VISION · IMMOBILIER</div>
+              <div style={{fontSize:8,color:"#444",letterSpacing:2}}>AI . VISION . IMMOBILIER</div>
             </div>
           </div>
           {/* Profil agence mini */}
@@ -1336,36 +1336,36 @@ ${profil.nomAgence?`<div class="contact">
           <button onClick={()=>setProfilOpen(p=>!p)}
             style={{...btn(profilOpen?C.gold+"20":C.surf,profilOpen?C.gold:C.muted,
               {border:`1px solid ${profilOpen?C.gold:C.brd}`,fontSize:11,padding:"6px 10px"})}}>
-            👤
+            
           </button>
           {/* Historique */}
           <button onClick={()=>{setShowHistory(h=>!h);setShowAdmin(false);}}
             style={{...btn(showHistory?C.acc+"20":C.surf,showHistory?C.acc:C.muted,
               {border:`1px solid ${showHistory?C.acc:C.brd}`,fontSize:11,padding:"6px 10px"})}}>
-            📊 {history.length}
+             {history.length}
           </button>
-          {/* Admin — seulement pour admin */}
+          {/* Admin -- seulement pour admin */}
           {isAdmin&&(
             <button onClick={()=>{setShowAdmin(a=>!a);setShowHistory(false);}}
               style={{...btn(showAdmin?C.green+"20":C.surf,showAdmin?C.green:C.muted,
                 {border:`1px solid ${showAdmin?C.green:C.brd}`,fontSize:11,padding:"6px 10px"})}}>
-              ⚙️
+              
             </button>
           )}
-          {/* Déconnexion */}
+          {/* Deconnexion */}
           <button onClick={onLogout}
             style={{...btn(C.surf,C.muted,{border:`1px solid ${C.brd}`,fontSize:11,padding:"6px 10px"})}}>
-            ⏻
+            X
           </button>
-          {/* Sélecteur langue interface */}
+          {/* Selecteur langue interface */}
           <select value={lang} onChange={e=>setLang(e.target.value)}
             style={{background:C.surf,border:`1px solid ${C.brd}`,borderRadius:7,
               padding:"6px 10px",color:C.text,fontSize:12,cursor:"pointer"}}>
-            <option value="fr">🇫🇷 FR</option>
-            <option value="en">🇬🇧 EN</option>
-            <option value="de">🇩🇪 DE</option>
-            <option value="lu">🇱🇺 LU</option>
-            <option value="nl">🇧🇪 NL</option>
+            <option value="fr">FR FR</option>
+            <option value="en">GB EN</option>
+            <option value="de">DE DE</option>
+            <option value="lu">LU LU</option>
+            <option value="nl">BE NL</option>
           </select>
         </div>
 
@@ -1380,21 +1380,21 @@ ${profil.nomAgence?`<div class="contact">
         )}
       </div>
 
-      {/* PROFIL PRO — panneau déroulant */}
+      {/* PROFIL PRO -- panneau deroulant */}
       {profilOpen&&(
         <div style={{padding:"14px 16px",background:"#0A0A1E",
           borderBottom:`1px solid ${C.gold}30`,animation:"fadeUp 0.2s ease"}}>
           <div style={{fontSize:11,color:C.gold,marginBottom:12,letterSpacing:1,fontWeight:700}}>
-            👤 PROFIL PROFESSIONNEL
+             PROFIL PROFESSIONNEL
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:10}}>
             {[
-              ["nomAgence","🏢 Nom de l'agence","Zaymmo Conseil"],
-              ["nomAgent","👤 Nom de l'agent","Jean Dupont"],
-              ["telephone","📞 Téléphone","+352 123 456 789"],
-              ["email","📧 Email","contact@immohub.lu"],
-              ["siteWeb","🌐 Site web","www.immohub.lu"],
-              ["slogan","💬 Slogan","Votre bien entre de bonnes mains"],
+              ["nomAgence"," Nom de l'agence","Zaymmo Conseil"],
+              ["nomAgent"," Nom de l'agent","Jean Dupont"],
+              ["telephone"," Telephone","+352 123 456 789"],
+              ["email"," Email","contact@immohub.lu"],
+              ["siteWeb"," Site web","www.immohub.lu"],
+              ["slogan"," Slogan","Votre bien entre de bonnes mains"],
             ].map(([k,label,ph])=>(
               <div key={k} style={{display:"flex",flexDirection:"column",gap:4}}>
                 <label style={{fontSize:10,color:C.muted,letterSpacing:1}}>{label}</label>
@@ -1405,7 +1405,7 @@ ${profil.nomAgence?`<div class="contact">
             ))}
           </div>
           <div style={{marginTop:10,fontSize:10,color:"#555",fontStyle:"italic"}}>
-            Ces infos apparaîtront dans l'aperçu plateforme et la fiche interne
+            Ces infos apparaitront dans l'apercu plateforme et la fiche interne
           </div>
         </div>
       )}
@@ -1415,19 +1415,19 @@ ${profil.nomAgence?`<div class="contact">
         <div style={{padding:"14px 16px",background:"#0A0A1E",
           borderBottom:`1px solid ${C.acc}30`,animation:"fadeUp 0.2s ease",maxHeight:320,overflowY:"auto"}}>
           <div style={{fontSize:11,color:C.acc,marginBottom:12,letterSpacing:1,fontWeight:700}}>
-            📊 HISTORIQUE DES ANALYSES ({history.length})
+             HISTORIQUE DES ANALYSES ({history.length})
           </div>
-          {history.length===0&&<div style={{fontSize:12,color:"#444"}}>Aucune analyse sauvegardée</div>}
+          {history.length===0&&<div style={{fontSize:12,color:"#444"}}>Aucune analyse sauvegardee</div>}
           {history.map(h=>(
             <div key={h.id} style={{background:C.surf,borderRadius:8,padding:"10px 12px",
               marginBottom:8,border:`1px solid ${C.brd}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <div style={{flex:1}}>
                 <div style={{fontSize:12,fontWeight:700,color:C.text}}>
-                  {h.type} — {h.ville}
+                  {h.type} -- {h.ville}
                 </div>
                 <div style={{fontSize:10,color:"#666",marginTop:2}}>
-                  {new Date(h.date).toLocaleDateString("fr-FR")} · {h.surface}m² · Score {h.score}/10
-                  {h.prix&&` · ${Number(h.prix).toLocaleString()} ${CURRENCIES[h.meta?.devise]||"€"}`}
+                  {new Date(h.date).toLocaleDateString("fr-FR")} . {h.surface}m2 . Score {h.score}/10
+                  {h.prix&&` . ${Number(h.prix).toLocaleString()} ${CURRENCIES[h.meta?.devise]||""}`}
                 </div>
                 <div style={{fontSize:10,color:"#555"}}>Par {h.user}</div>
               </div>
@@ -1437,23 +1437,23 @@ ${profil.nomAgence?`<div class="contact">
                   setStep("analyse");setShowHistory(false);
                 }} style={{fontSize:10,padding:"4px 8px",borderRadius:6,
                   background:C.acc+"20",color:C.acc,border:`1px solid ${C.acc}40`}}>
-                  ↩ Rouvrir
+                  <- Rouvrir
                 </button>
                 {isAdmin&&<button onClick={()=>deleteHistoryEntry(h.id)}
                   style={{fontSize:10,padding:"4px 8px",borderRadius:6,
-                    background:"transparent",color:C.err,border:"none"}}>✕</button>}
+                    background:"transparent",color:C.err,border:"none"}}></button>}
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* ADMIN — Gestion utilisateurs */}
+      {/* ADMIN -- Gestion utilisateurs */}
       {showAdmin&&isAdmin&&(
         <div style={{padding:"14px 16px",background:"#0A1A0A",
           borderBottom:`1px solid ${C.green}30`,animation:"fadeUp 0.2s ease"}}>
           <div style={{fontSize:11,color:C.green,marginBottom:12,letterSpacing:1,fontWeight:700}}>
-            ⚙️ GESTION UTILISATEURS
+             GESTION UTILISATEURS
           </div>
           {/* Liste utilisateurs */}
           <div style={{marginBottom:12}}>
@@ -1466,7 +1466,7 @@ ${profil.nomAgence?`<div class="contact">
                     {u.name}
                   </span>
                   <span style={{fontSize:10,color:"#555",marginLeft:8}}>
-                    {u.role==="admin"?"👑 Admin":"👤 Invité"}
+                    {u.role==="admin"?" Admin":" Invite"}
                   </span>
                   <span style={{fontSize:10,color:"#333",marginLeft:8}}>
                     MDP: {u.password}
@@ -1475,14 +1475,14 @@ ${profil.nomAgence?`<div class="contact">
                 {u.id!=="admin"&&(
                   <button onClick={()=>deleteUser(u.id)}
                     style={{fontSize:11,color:C.err,background:"transparent",border:"none",cursor:"pointer"}}>
-                    ✕ Supprimer
+                     Supprimer
                   </button>
                 )}
               </div>
             ))}
           </div>
-          {/* Créer utilisateur */}
-          <div style={{fontSize:10,color:C.green,marginBottom:8,letterSpacing:1}}>CRÉER UN INVITÉ</div>
+          {/* Creer utilisateur */}
+          <div style={{fontSize:10,color:C.green,marginBottom:8,letterSpacing:1}}>CREER UN INVITE</div>
           <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
             <input value={newUserName} onChange={e=>setNewUserName(e.target.value)}
               placeholder="Nom de l'agent"
@@ -1493,7 +1493,7 @@ ${profil.nomAgence?`<div class="contact">
             <button onClick={createUser} disabled={!newUserName.trim()||!newUserPwd.trim()}
               style={{...btn(C.green,"#fff"),fontSize:12,padding:"8px 16px",
                 opacity:(!newUserName.trim()||!newUserPwd.trim())?0.5:1}}>
-              + Créer
+              + Creer
             </button>
           </div>
         </div>
@@ -1508,8 +1508,8 @@ ${profil.nomAgence?`<div class="contact">
         <div style={{margin:"10px 16px 0",padding:"10px 14px",background:"#1F0A0A",
           border:`1px solid ${C.err}40`,borderRadius:8,fontSize:12,color:C.err,
           display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <span>❌ {error}</span>
-          <button onClick={()=>setError(null)} style={{background:"transparent",color:C.err,fontSize:18}}>×</button>
+          <span> {error}</span>
+          <button onClick={()=>setError(null)} style={{background:"transparent",color:C.err,fontSize:18}}></button>
         </div>
       )}
       {!API_KEY&&(
@@ -1522,15 +1522,15 @@ ${profil.nomAgence?`<div class="contact">
       {/* CONTENU */}
       <div style={{flex:1,overflowY:"auto",padding:"14px 16px"}}>
 
-        {/* ── FICHE BIEN — PAYS EN PREMIER ── */}
+        {/* -- FICHE BIEN -- PAYS EN PREMIER -- */}
         <Card>
-          <ST>📋 {L.infoSub}</ST>
+          <ST> {L.infoSub}</ST>
 
           {/* PAYS EN PREMIER */}
           <div style={{marginBottom:14,padding:"12px 14px",background:"#0A0A1E",
             borderRadius:10,border:`1px solid ${C.acc}30`}}>
             <div style={{fontSize:10,color:C.acc,letterSpacing:1,marginBottom:8,fontWeight:700}}>
-              🌍 PAYS DU BIEN — définit les plateformes, mentions légales et langue
+               PAYS DU BIEN -- definit les plateformes, mentions legales et langue
             </div>
             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
               {Object.entries(COUNTRIES).map(([k,v])=>(
@@ -1558,7 +1558,7 @@ ${profil.nomAgence?`<div class="contact">
               <input type="number" value={meta.surface} onChange={e=>setM("surface",e.target.value)}
                 placeholder="85" style={inp}/>
             </MF>
-            <MF label="Terrain (m²)">
+            <MF label="Terrain (m2)">
               <input type="number" value={meta.terrain||""} onChange={e=>setM("terrain",e.target.value)}
                 placeholder="ex: 500 (maison/villa)" style={inp}/>
             </MF>
@@ -1568,9 +1568,9 @@ ${profil.nomAgence?`<div class="contact">
                   placeholder="285000" style={{...inp,flex:1}}/>
                 <select value={meta.devise} onChange={e=>setM("devise",e.target.value)}
                   style={{...inp,width:65,padding:"10px 5px"}}>
-                  <option value="EUR">€</option>
+                  <option value="EUR"></option>
                   <option value="CHF">CHF</option>
-                  <option value="GBP">£</option>
+                  <option value="GBP"></option>
                 </select>
               </div>
             </MF>
@@ -1610,11 +1610,11 @@ ${profil.nomAgence?`<div class="contact">
               <DPE dpe={meta.dpe}/>
             </MF>
             <MF label="GES (Gaz effet de serre)">
-              <select value={meta.ges||"Non renseigné"} onChange={e=>setM("ges",e.target.value)}
+              <select value={meta.ges||"Non renseigne"} onChange={e=>setM("ges",e.target.value)}
                 style={{...inp,padding:"10px"}}>
-                {["Non renseigné","A","B","C","D","E","F","G"].map(o=><option key={o}>{o}</option>)}
+                {["Non renseigne","A","B","C","D","E","F","G"].map(o=><option key={o}>{o}</option>)}
               </select>
-              {/* Badge GES — même style que DPE */}
+              {/* Badge GES -- meme style que DPE */}
               {DPE_VALID.includes(meta.ges) && (
                 <div style={{display:"flex",gap:3,marginTop:6,flexWrap:"wrap"}}>
                   {["A","B","C","D","E","F","G"].map(l=>(
@@ -1651,17 +1651,17 @@ ${profil.nomAgence?`<div class="contact">
             <MF label={L.langAnnonce}>
               <select value={meta.langAnnonce} onChange={e=>setM("langAnnonce",e.target.value)}
                 style={{...inp,padding:"10px"}}>
-                <option value="fr">🇫🇷 Français</option>
-                <option value="en">🇬🇧 English</option>
-                <option value="de">🇩🇪 Deutsch</option>
-                <option value="lu">🇱🇺 Lëtzebuergesch</option>
-                <option value="nl">🇧🇪 Nederlands</option>
+                <option value="fr">FR Francais</option>
+                <option value="en">GB English</option>
+                <option value="de">DE Deutsch</option>
+                <option value="lu">LU Letzebuergesch</option>
+                <option value="nl">BE Nederlands</option>
               </select>
             </MF>
           </div>
           <div style={{fontSize:11,color:C.muted,letterSpacing:1,marginBottom:10}}>{L.equipements}</div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>
-            {[...L.equip,["cellier","📦 Cellier"],["buanderie","🫧 Buanderie"]].map(([k,label])=>(
+            {[...L.equip,["cellier"," Cellier"],["buanderie"," Buanderie"]].map(([k,label])=>(
               <label key={k} style={{display:"flex",alignItems:"center",gap:8,
                 fontSize:13,color:meta[k]?C.text:"#555",cursor:"pointer",padding:"4px 0"}}>
                 <input type="checkbox" checked={!!meta[k]} onChange={e=>setM(k,e.target.checked)}/>
@@ -1671,16 +1671,16 @@ ${profil.nomAgence?`<div class="contact">
           </div>
         </Card>
 
-        {/* ── PHOTOS ── */}
+        {/* -- PHOTOS -- */}
         <Card>
-          <ST color={C.acc}>📸 {L.addPhoto}</ST>
+          <ST color={C.acc}> {L.addPhoto}</ST>
           {/* Multi-URL */}
           <div style={{marginBottom:14}}>
             <textarea value={urlIn} onChange={e=>{setUrlIn(e.target.value);setUrlError("");}}
               placeholder={`https://images.unsplash.com/...\nhttps://...\nhttps://...`}
               rows={3} style={{...inp,resize:"vertical",minHeight:75,fontSize:11,lineHeight:1.6,
                 border:`1px solid ${urlError?C.err:C.brd}`}}/>
-            {urlError&&<div style={{fontSize:10,color:C.err,marginTop:4}}>⚠ {urlError}</div>}
+            {urlError&&<div style={{fontSize:10,color:C.err,marginTop:4}}>! {urlError}</div>}
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8}}>
               <div style={{fontSize:10,color:"#444"}}>
                 {urlIn.trim()?`${urlIn.trim().split(/[\n\s]+/).filter(l=>l.startsWith("http")).length} URL(s)`:""}
@@ -1692,7 +1692,7 @@ ${profil.nomAgence?`<div class="contact">
               </button>
             </div>
           </div>
-          {/* Galerie / Caméra */}
+          {/* Galerie / Camera */}
           <input ref={fileRef} type="file" accept="image/*" multiple
             style={{display:"none"}} onChange={onFiles}/>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
@@ -1701,7 +1701,7 @@ ${profil.nomAgence?`<div class="contact">
                 padding:"14px 10px",borderRadius:12,display:"flex",flexDirection:"column",
                 alignItems:"center",gap:5,opacity:loading?0.5:1,
                 boxShadow:"0 4px 16px #7C6FFF40"}}>
-              <span style={{fontSize:24}}>🖼️</span>
+              <span style={{fontSize:24}}></span>
               <span style={{fontSize:12}}>{L.gallerie}</span>
             </button>
             <button onClick={()=>{
@@ -1714,7 +1714,7 @@ ${profil.nomAgence?`<div class="contact">
               style={{...btn(C.surf,C.acc),padding:"14px 10px",borderRadius:12,
                 border:`2px solid ${C.acc}`,display:"flex",flexDirection:"column",
                 alignItems:"center",gap:5,opacity:loading?0.5:1}}>
-              <span style={{fontSize:24}}>📷</span>
+              <span style={{fontSize:24}}></span>
               <span style={{fontSize:12}}>{L.camera}</span>
             </button>
           </div>
@@ -1722,7 +1722,7 @@ ${profil.nomAgence?`<div class="contact">
           {photos.length>0&&(
             <>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:10,alignItems:"center"}}>
-                <div style={{fontSize:11,color:C.green}}>✓ {photos.length} photo{photos.length>1?"s":""}</div>
+                <div style={{fontSize:11,color:C.green}}>OK {photos.length} photo{photos.length>1?"s":""}</div>
                 <div style={{fontSize:10,color:"#555"}}>{L.nommer}</div>
               </div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(145px,1fr))",gap:12}}>
@@ -1738,7 +1738,7 @@ ${profil.nomAgence?`<div class="contact">
                       {ph.status==="loading"?(
                         <div style={{width:"100%",height:"100%",display:"flex",
                           alignItems:"center",justifyContent:"center"}}>
-                          <span style={{fontSize:20,color:"#555",animation:"spin 1s linear infinite",display:"block"}}>◌</span>
+                          <span style={{fontSize:20,color:"#555",animation:"spin 1s linear infinite",display:"block"}}></span>
                         </div>
                       ):ph.preview?(
                         <img src={ph.preview} alt={ph.roomType}
@@ -1746,19 +1746,19 @@ ${profil.nomAgence?`<div class="contact">
                           onError={e=>{e.target.style.display="none";}}/>
                       ):(
                         <div style={{width:"100%",height:"100%",display:"flex",
-                          alignItems:"center",justifyContent:"center",color:"#555",fontSize:11}}>🖼️</div>
+                          alignItems:"center",justifyContent:"center",color:"#555",fontSize:11}}></div>
                       )}
                       {ph.status==="analyzing"&&(
                         <div style={{position:"absolute",inset:0,background:"#00000080",
                           display:"flex",alignItems:"center",justifyContent:"center"}}>
-                          <span style={{fontSize:22,color:"#fff",animation:"spin 1s linear infinite",display:"block"}}>◌</span>
+                          <span style={{fontSize:22,color:"#fff",animation:"spin 1s linear infinite",display:"block"}}></span>
                         </div>
                       )}
                       <div style={{position:"absolute",top:5,right:5}}>
                         <span style={{fontSize:9,padding:"2px 6px",borderRadius:6,
                           background:ph.status==="done"?"#0A1A12":ph.status==="error"?"#1A0A0A":"#111",
                           color:ph.status==="done"?C.green:ph.status==="error"?C.err:"#555"}}>
-                          {ph.status==="done"?"✓":ph.status==="error"?"✗":ph.status==="analyzing"?"…":"○"}
+                          {ph.status==="done"?"OK":ph.status==="error"?"X":ph.status==="analyzing"?"...":""}
                         </span>
                       </div>
                       {ph.result?.score_etat&&(
@@ -1776,9 +1776,9 @@ ${profil.nomAgence?`<div class="contact">
                       </select>
                       {ph.result&&!ph.result.error&&(
                         <div style={{fontSize:10,marginBottom:5,lineHeight:1.5}}>
-                          {ph.result.surface_estimee_m2&&<div style={{color:C.gold}}>📐 ~{ph.result.surface_estimee_m2}m²</div>}
+                          {ph.result.surface_estimee_m2&&<div style={{color:C.gold}}> ~{ph.result.surface_estimee_m2}m2</div>}
                           {ph.result.etat_general&&<div style={{color:"#888"}}>{ph.result.etat_general}</div>}
-                          {ph.result.defauts_detectes?.slice(0,1).map((d,j)=><div key={j} style={{color:C.err}}>⚠ {d}</div>)}
+                          {ph.result.defauts_detectes?.slice(0,1).map((d,j)=><div key={j} style={{color:C.err}}>! {d}</div>)}
                         </div>
                       )}
                       <button onClick={()=>removePhoto(ph.id)} disabled={loading}
@@ -1798,7 +1798,7 @@ ${profil.nomAgence?`<div class="contact">
             </div>
           )}
 
-          {/* Bouton Analyser — en bas après les photos */}
+          {/* Bouton Analyser -- en bas apres les photos */}
           {photos.length>0&&(
             <button onClick={canRun?runAnalysis:undefined} disabled={!canRun}
               style={{...btn(canRun?"linear-gradient(135deg,#7C6FFF,#4AE88A)":"#1A1A2E",
@@ -1806,12 +1806,12 @@ ${profil.nomAgence?`<div class="contact">
                 width:"100%",padding:"16px",marginTop:16,fontSize:14,
                 opacity:loading?0.6:1,
                 boxShadow:canRun?"0 6px 20px #7C6FFF50":"none"}}>
-              {loading?`⟳ ${prog}% — ${loadMsg}`:canRun?`▶ ${L.analyser} ${photos.length} photo${photos.length>1?"s":""}`:L.analyser}
+              {loading?`... ${prog}% -- ${loadMsg}`:canRun?`> ${L.analyser} ${photos.length} photo${photos.length>1?"s":""}`:L.analyser}
             </button>
           )}
         </Card>
 
-        {/* ── RÉSULTATS ── */}
+        {/* -- RESULTATS -- */}
         {synth&&(
           <div style={{animation:"fadeUp 0.4s ease"}}>
             <Card>
@@ -1819,7 +1819,7 @@ ${profil.nomAgence?`<div class="contact">
                 alignItems:"center",marginBottom:14,flexWrap:"wrap",gap:10}}>
                 <ST color={C.green}>{L.results}</ST>
                 <div style={{display:"flex",flexDirection:"column",gap:8,alignItems:"flex-end"}}>
-                  {/* Case à cocher — constatations IA */}
+                  {/* Case a cocher -- constatations IA */}
                   <label style={{display:"flex",alignItems:"center",gap:8,
                     fontSize:11,color:includeAIFindings?C.gold:"#555",
                     cursor:"pointer",padding:"6px 10px",borderRadius:8,
@@ -1829,7 +1829,7 @@ ${profil.nomAgence?`<div class="contact">
                     <input type="checkbox" checked={includeAIFindings}
                       onChange={e=>setIncludeAIFindings(e.target.checked)}
                       style={{accentColor:C.gold,width:15,height:15}}/>
-                    <span>📸 Inclure observations photos dans l'annonce</span>
+                    <span> Inclure observations photos dans l'annonce</span>
                   </label>
                   <button onClick={genAnnonce} disabled={loading}
                     style={{...btn("linear-gradient(135deg,#7C6FFF,#4AE88A)"),
@@ -1843,13 +1843,13 @@ ${profil.nomAgence?`<div class="contact">
                 <div style={{flex:1,minWidth:180}}>
                   <div style={{fontSize:15,fontWeight:700,marginBottom:6}}>{synth.etat_global}</div>
                   <div style={{display:"flex",gap:12,fontSize:13,color:"#888",flexWrap:"wrap",marginBottom:8}}>
-                    {synth.surface_totale_estimee&&<span>📐 ~{synth.surface_totale_estimee}m²</span>}
-                    {synth.nb_pieces&&<span>🏠 {synth.nb_pieces}</span>}
-                    {synth.nb_chambres&&<span>🛏 {synth.nb_chambres}</span>}
+                    {synth.surface_totale_estimee&&<span> ~{synth.surface_totale_estimee}m2</span>}
+                    {synth.nb_pieces&&<span> {synth.nb_pieces}</span>}
+                    {synth.nb_chambres&&<span> {synth.nb_chambres}</span>}
                   </div>
                   {synth.fourchette_prix_basse&&(
                     <div style={{fontSize:14,fontWeight:700,color:C.gold}}>
-                      💰 {synth.fourchette_prix_basse.toLocaleString()}–{synth.fourchette_prix_haute.toLocaleString()} {dev}
+                       {synth.fourchette_prix_basse.toLocaleString()}-{synth.fourchette_prix_haute.toLocaleString()} {dev}
                     </div>
                   )}
                 </div>
@@ -1862,7 +1862,7 @@ ${profil.nomAgence?`<div class="contact">
               )}
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
                 {[[L.pointsForts,synth.points_forts,C.green],
-                  [L.defauts,[...(synth.points_faibles||[]),...(synth.defauts_critiques||[]).map(d=>"🔴 "+d)],C.err],
+                  [L.defauts,[...(synth.points_faibles||[]),...(synth.defauts_critiques||[]).map(d=>" "+d)],C.err],
                   [L.retouches,synth.suggestions_retouche_globales,C.gold]
                 ].map(([title,items,col])=>(
                   <div key={title} style={{background:"#06060F",borderRadius:10,padding:"10px 12px"}}>
@@ -1870,7 +1870,7 @@ ${profil.nomAgence?`<div class="contact">
                     {(items||[]).slice(0,4).map((p,i)=>(
                       <div key={i} style={{fontSize:11,color:"#666",padding:"3px 0",
                         borderBottom:`1px solid ${C.brd}`,lineHeight:1.5}}>
-                        <span style={{color:col}}>›</span> {p}
+                        <span style={{color:col}}></span> {p}
                       </div>
                     ))}
                   </div>
@@ -1878,7 +1878,7 @@ ${profil.nomAgence?`<div class="contact">
               </div>
               {synth.pense_betes?.length>0&&(
                 <div style={{marginTop:12,background:"#06060F",borderRadius:10,padding:"10px 12px"}}>
-                  <div style={{fontSize:10,color:C.acc,marginBottom:8,letterSpacing:1}}>📌 {L.penseBetes}</div>
+                  <div style={{fontSize:10,color:C.acc,marginBottom:8,letterSpacing:1}}> {L.penseBetes}</div>
                   {synth.pense_betes.map((p,i)=>(
                     <div key={i} style={{fontSize:11,color:"#666",padding:"3px 0",
                       borderBottom:`1px solid ${C.brd}`,lineHeight:1.5}}>
@@ -1891,7 +1891,7 @@ ${profil.nomAgence?`<div class="contact">
           </div>
         )}
 
-        {/* ── ANNONCE ── */}
+        {/* -- ANNONCE -- */}
         {(annonce||Object.keys(annonces).length>0)&&(
           <div style={{animation:"fadeUp 0.4s ease"}}>
             <Card>
@@ -1901,7 +1901,7 @@ ${profil.nomAgence?`<div class="contact">
                 <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                   {revHist.length>0&&(
                     <button onClick={()=>{setAnnonce(revHist[revHist.length-1]);setRevHist(h=>h.slice(0,-1));}}
-                      style={{...btn(C.surf,C.muted,{border:`1px solid ${C.brd}`,fontSize:11,padding:"7px 12px"})}}>↩</button>
+                      style={{...btn(C.surf,C.muted,{border:`1px solid ${C.brd}`,fontSize:11,padding:"7px 12px"})}}><-</button>
                   )}
                   <button onClick={()=>setRevMode(m=>!m)}
                     style={{...btn(revMode?C.acc:C.acc+"20",revMode?"#fff":C.acc,
@@ -1914,21 +1914,21 @@ ${profil.nomAgence?`<div class="contact">
                   </button>
                   <button onClick={()=>setStep("fiche_interne")}
                     style={{...btn(C.green+"20",C.green,{border:`1px solid ${C.green}40`,fontSize:11,padding:"7px 12px"})}}>
-                    📄
+                    
                   </button>
                   {/* Boutons impression */}
                   <button onClick={printPro}
                     style={{...btn("#1A1A2E",C.gold,{border:`1px solid ${C.gold}40`,fontSize:11,padding:"7px 12px"})}}>
-                    🖨️ Pro
+                     Pro
                   </button>
                   <button onClick={printClient}
                     style={{...btn("#1A1A2E",C.green,{border:`1px solid ${C.green}40`,fontSize:11,padding:"7px 12px"})}}>
-                    🖨️ Client
+                     Client
                   </button>
                 </div>
               </div>
 
-              {/* ── MODE RÉVISION ── */}
+              {/* -- MODE REVISION -- */}
               {revMode&&(
                 <div style={{marginBottom:14,padding:14,background:"#0A0A18",
                   border:`1px solid ${C.acc}30`,borderRadius:10,animation:"fadeUp 0.2s ease"}}>
@@ -1938,26 +1938,26 @@ ${profil.nomAgence?`<div class="contact">
                     <button onClick={()=>setMultiLangMode(false)}
                       style={{...btn(!multiLangMode?C.acc:C.surf,!multiLangMode?"#fff":C.muted,
                         {border:`1px solid ${!multiLangMode?C.acc:C.brd}`,fontSize:11,padding:"7px 14px",flex:1})}}>
-                      ✍️ 1 langue
+                       1 langue
                     </button>
                     <button onClick={()=>setMultiLangMode(true)}
                       style={{...btn(multiLangMode?C.acc:C.surf,multiLangMode?"#fff":C.muted,
                         {border:`1px solid ${multiLangMode?C.acc:C.brd}`,fontSize:11,padding:"7px 14px",flex:1})}}>
-                      🌍 Multi-langues
+                       Multi-langues
                     </button>
                   </div>
 
                   {!multiLangMode ? (
-                    /* MODE SIMPLE — 1 langue */
+                    /* MODE SIMPLE -- 1 langue */
                     <>
                       <div style={{fontSize:11,color:C.acc,marginBottom:10}}>
-                        Langue → modifier → appliquer
+                        Langue -> modifier -> appliquer
                       </div>
                       {/* Changement de langue */}
                       <div style={{marginBottom:10}}>
                         <div style={{fontSize:10,color:"#555",marginBottom:6}}>CHANGER LA LANGUE</div>
                         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                          {[["fr","🇫🇷"],["en","🇬🇧"],["de","🇩🇪"],["lu","🇱🇺"],["nl","🇧🇪"]].map(([lg,flag])=>(
+                          {[["fr","FR"],["en","GB"],["de","DE"],["lu","LU"],["nl","BE"]].map(([lg,flag])=>(
                             <button key={lg} onClick={()=>{
                               if(annonces[lg]){setAnnonce(annonces[lg]);setActiveLang(lg);}
                               else{setM("langAnnonce",lg);genAnnonce();}
@@ -1967,15 +1967,15 @@ ${profil.nomAgence?`<div class="contact">
                                 border:`1px solid ${activeLang===lg?C.acc:"#222"}`,
                                 color:activeLang===lg?C.acc:"#555",
                                 boxShadow:annonces[lg]?`0 0 6px ${C.green}40`:"none"}}>
-                              {flag} {annonces[lg]?"✓":""}
+                              {flag} {annonces[lg]?"OK":""}
                             </button>
                           ))}
                         </div>
                       </div>
-                      {/* Instructions révision */}
+                      {/* Instructions revision */}
                       <div style={{fontSize:10,color:"#555",marginBottom:8}}>MODIFIER LE TEXTE</div>
                       <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
-                        {["Ton plus formel","Ton plus chaleureux","Raccourcir","Mettre en avant le prix","Ajouter appel à l'action"].map(s=>(
+                        {["Ton plus formel","Ton plus chaleureux","Raccourcir","Mettre en avant le prix","Ajouter appel a l'action"].map(s=>(
                           <button key={s} onClick={()=>setRevInstr(s)}
                             style={{padding:"5px 10px",borderRadius:16,fontSize:10,
                               background:revInstr===s?C.acc+"20":"#111120",
@@ -1986,7 +1986,7 @@ ${profil.nomAgence?`<div class="contact">
                       <div style={{display:"flex",gap:8}}>
                         <textarea value={revInstr} onChange={e=>setRevInstr(e.target.value)}
                           onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();applyRev();}}}
-                          placeholder="Instruction précise…"
+                          placeholder="Instruction precise..."
                           style={{...inp,flex:1,height:50,resize:"none"}}/>
                         <button onClick={applyRev} disabled={!revInstr.trim()||loading}
                           style={{...btn(C.acc),padding:"0 16px",opacity:(!revInstr.trim()||loading)?0.4:1}}>
@@ -1995,14 +1995,14 @@ ${profil.nomAgence?`<div class="contact">
                       </div>
                     </>
                   ) : (
-                    /* MODE MULTI-LANGUES — cases à cocher */
+                    /* MODE MULTI-LANGUES -- cases a cocher */
                     <>
                       <div style={{fontSize:11,color:C.acc,marginBottom:12}}>
-                        Coche les langues souhaitées — une annonce sera générée pour chacune
+                        Coche les langues souhaitees -- une annonce sera generee pour chacune
                       </div>
                       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
-                        {[["fr","🇫🇷 Français"],["en","🇬🇧 English"],
-                          ["de","🇩🇪 Deutsch"],["lu","🇱🇺 Lëtzebuergesch"],["nl","🇧🇪 Nederlands"]].map(([lg,label])=>(
+                        {[["fr","FR Francais"],["en","GB English"],
+                          ["de","DE Deutsch"],["lu","LU Letzebuergesch"],["nl","BE Nederlands"]].map(([lg,label])=>(
                           <label key={lg} style={{display:"flex",alignItems:"center",gap:8,
                             fontSize:13,color:selectedLangs[lg]?C.text:"#555",
                             cursor:"pointer",padding:"8px 10px",borderRadius:8,
@@ -2011,7 +2011,7 @@ ${profil.nomAgence?`<div class="contact">
                             <input type="checkbox" checked={!!selectedLangs[lg]}
                               onChange={e=>setSelectedLangs(s=>({...s,[lg]:e.target.checked}))}/>
                             {label}
-                            {annonces[lg]&&<span style={{marginLeft:"auto",color:C.green,fontSize:11}}>✓</span>}
+                            {annonces[lg]&&<span style={{marginLeft:"auto",color:C.green,fontSize:11}}>OK</span>}
                           </label>
                         ))}
                       </div>
@@ -2019,18 +2019,18 @@ ${profil.nomAgence?`<div class="contact">
                         style={{...btn("linear-gradient(135deg,#7C6FFF,#4AE88A)"),
                           width:"100%",padding:"12px",fontSize:13,
                           opacity:(loading||!Object.values(selectedLangs).some(Boolean))?0.5:1}}>
-                        {loading?`⟳ ${loadMsg}`:`🌍 Générer ${Object.values(selectedLangs).filter(Boolean).length} langue(s)`}
+                        {loading?`... ${loadMsg}`:` Generer ${Object.values(selectedLangs).filter(Boolean).length} langue(s)`}
                       </button>
                     </>
                   )}
                 </div>
               )}
 
-              {/* Onglets langues si multi-langue généré */}
+              {/* Onglets langues si multi-langue genere */}
               {Object.keys(annonces).length>1&&(
                 <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14}}>
                   {Object.keys(annonces).map(lg=>{
-                    const flags={fr:"🇫🇷",en:"🇬🇧",de:"🇩🇪",lu:"🇱🇺",nl:"🇧🇪"};
+                    const flags={fr:"FR",en:"GB",de:"DE",lu:"LU",nl:"BE"};
                     return(
                       <button key={lg} onClick={()=>{setActiveLang(lg);setAnnonce(annonces[lg]);}}
                         style={{padding:"7px 14px",borderRadius:8,fontSize:12,fontWeight:600,
@@ -2071,18 +2071,18 @@ ${profil.nomAgence?`<div class="contact">
                 </>
               )}
               {annonce?.error&&(
-                <div style={{color:C.err,fontSize:12,padding:10}}>❌ {annonce.error}</div>
+                <div style={{color:C.err,fontSize:12,padding:10}}> {annonce.error}</div>
               )}
             </Card>
           </div>
         )}
 
-        {/* ── APERÇU PLATEFORMES ── */}
+        {/* -- APERCU PLATEFORMES -- */}
         {annonce&&step==="apercu"&&(
           <div style={{animation:"fadeUp 0.4s ease"}}>
             <Card>
               <ST color={C.gold}>{L.paysPlatform}</ST>
-              {/* Sélecteur pays plateformes — auto-langue */}
+              {/* Selecteur pays plateformes -- auto-langue */}
               <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
                 {Object.entries(COUNTRIES).map(([k,v])=>(
                   <button key={k} onClick={()=>changePlatCountry(k)}
@@ -2090,11 +2090,11 @@ ${profil.nomAgence?`<div class="contact">
                       background:platCountry===k?C.acc:C.surf,color:platCountry===k?"#fff":"#666",
                       border:`1px solid ${platCountry===k?C.acc:C.brd}`}}>
                     {v}
-                    {annonces[PLATFORM_LANG[k]]&&<span style={{color:C.green,marginLeft:4}}>✓</span>}
+                    {annonces[PLATFORM_LANG[k]]&&<span style={{color:C.green,marginLeft:4}}>OK</span>}
                   </button>
                 ))}
               </div>
-              {/* Sélecteur plateforme */}
+              {/* Selecteur plateforme */}
               <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16,alignItems:"center"}}>
                 {currPlats.map(p=>(
                   <button key={p.id} onClick={()=>setPlat(p.id)}
@@ -2148,14 +2148,14 @@ ${profil.nomAgence?`<div class="contact">
                       <div style={{fontSize:17,fontWeight:700,marginBottom:10,lineHeight:1.3,color:"#1A1A1A"}}>{titre}</div>
                       <div style={{display:"flex",gap:12,marginBottom:12,flexWrap:"wrap",
                         fontSize:13,color:"#555",borderBottom:"1px solid #EEE",paddingBottom:12}}>
-                        <span>📐 {synth?.surface_totale_estimee||meta.surface}m²</span>
-                        <span>🏠 {synth?.nb_pieces||meta.pieces}</span>
-                        <span>🛏 {synth?.nb_chambres||meta.chambres}</span>
+                        <span> {synth?.surface_totale_estimee||meta.surface}m2</span>
+                        <span> {synth?.nb_pieces||meta.pieces}</span>
+                        <span> {synth?.nb_chambres||meta.chambres}</span>
                         {meta.dpe?.length===1&&(
                           <span style={{padding:"2px 8px",borderRadius:4,fontWeight:700,
                             background:DPE_C[meta.dpe],color:"#fff",fontSize:11}}>DPE {meta.dpe}</span>
                         )}
-                        {meta.charges&&<span>💰 {meta.charges} {dev}/mois</span>}
+                        {meta.charges&&<span> {meta.charges} {dev}/mois</span>}
                       </div>
                       <div style={{fontSize:13,lineHeight:1.8,color:"#333",marginBottom:12}}>{desc}</div>
                       {annonce.points_cles?.length>0&&(
@@ -2168,9 +2168,9 @@ ${profil.nomAgence?`<div class="contact">
                         </div>
                       )}
                       <div style={{display:"flex",gap:10,flexWrap:"wrap",fontSize:12,color:"#888",marginBottom:14}}>
-                        {[...L.equip,["cellier","📦 Cellier"],["buanderie","🫧 Buanderie"]].filter(([k])=>meta[k]).map(([k,label])=><span key={k}>{label}</span>)}
+                        {[...L.equip,["cellier"," Cellier"],["buanderie"," Buanderie"]].filter(([k])=>meta[k]).map(([k,label])=><span key={k}>{label}</span>)}
                       </div>
-                      {/* Mentions légales */}
+                      {/* Mentions legales */}
                       <div style={{fontSize:10,color:"#AAA",lineHeight:1.6,padding:"10px 12px",
                         background:"#F8F8F8",borderRadius:6,borderLeft:"3px solid #DDD",marginBottom:14}}>
                         <div style={{fontWeight:700,marginBottom:4,fontSize:11}}>{L.mentions}</div>
@@ -2181,18 +2181,18 @@ ${profil.nomAgence?`<div class="contact">
                         <div style={{padding:"12px 14px",background:"#F0F0F8",borderRadius:8,
                           marginBottom:14,borderLeft:`3px solid ${p.color}`}}>
                           <div style={{fontWeight:700,fontSize:13,color:"#1A1A1A",marginBottom:4}}>
-                            🏢 {profil.nomAgence}
+                             {profil.nomAgence}
                           </div>
-                          {profil.nomAgent&&<div style={{fontSize:12,color:"#555"}}>👤 {profil.nomAgent}</div>}
-                          {profil.telephone&&<div style={{fontSize:12,color:"#555"}}>📞 {profil.telephone}</div>}
-                          {profil.email&&<div style={{fontSize:12,color:"#555"}}>📧 {profil.email}</div>}
+                          {profil.nomAgent&&<div style={{fontSize:12,color:"#555"}}> {profil.nomAgent}</div>}
+                          {profil.telephone&&<div style={{fontSize:12,color:"#555"}}> {profil.telephone}</div>}
+                          {profil.email&&<div style={{fontSize:12,color:"#555"}}> {profil.email}</div>}
                           {profil.siteWeb&&<div style={{fontSize:12,color:p.color}}>{profil.siteWeb}</div>}
                           {profil.slogan&&<div style={{fontSize:11,color:"#888",fontStyle:"italic",marginTop:4}}>{profil.slogan}</div>}
                         </div>
                       )}
                       <div style={{display:"inline-block",padding:"12px 24px",
                         background:p.color,color:"#fff",borderRadius:8,fontSize:13,fontWeight:700}}>
-                        📞 {profil.telephone||"Contacter"}
+                         {profil.telephone||"Contacter"}
                       </div>
                     </div>
                   </div>
@@ -2202,7 +2202,7 @@ ${profil.nomAgence?`<div class="contact">
           </div>
         )}
 
-        {/* ── FICHE INTERNE ── */}
+        {/* -- FICHE INTERNE -- */}
         {synth&&annonce&&step==="fiche_interne"&&(
           <div style={{animation:"fadeUp 0.4s ease"}}>
             <Card>
@@ -2214,25 +2214,25 @@ ${profil.nomAgence?`<div class="contact">
                   {L.telecharger}
                 </button>
               </div>
-              {/* En-tête */}
+              {/* En-tete */}
               <div style={{background:"#06060F",borderRadius:10,padding:"14px",marginBottom:14}}>
                 <div style={{display:"flex",gap:16,flexWrap:"wrap",fontSize:13,marginBottom:8}}>
-                  <span style={{color:C.gold,fontWeight:700}}>{meta.type} — {meta.ville||"NC"}</span>
-                  <span style={{color:"#888"}}>{synth.surface_totale_estimee||meta.surface}m² · {synth.nb_pieces||meta.pieces} pièces</span>
+                  <span style={{color:C.gold,fontWeight:700}}>{meta.type} -- {meta.ville||"NC"}</span>
+                  <span style={{color:"#888"}}>{synth.surface_totale_estimee||meta.surface}m2 . {synth.nb_pieces||meta.pieces} pieces</span>
                   <span style={{color:C.green,fontWeight:700}}>Score {synth.score_global}/10</span>
                 </div>
                 {meta.prix&&<div style={{fontSize:18,fontWeight:700,color:C.gold}}>{Number(meta.prix).toLocaleString()} {dev}</div>}
                 {synth.fourchette_prix_basse&&(
                   <div style={{fontSize:12,color:"#666",marginTop:4}}>
-                    {L.estimation}: {synth.fourchette_prix_basse.toLocaleString()}–{synth.fourchette_prix_haute.toLocaleString()} {dev}
+                    {L.estimation}: {synth.fourchette_prix_basse.toLocaleString()}-{synth.fourchette_prix_haute.toLocaleString()} {dev}
                   </div>
                 )}
               </div>
               {/* Grille */}
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
                 {[[L.pointsForts,synth.points_forts,C.green],
-                  [L.defauts,[...(synth.points_faibles||[]),...(synth.defauts_critiques||[]).map(d=>"🔴 "+d)],C.err],
-                  [L.travaux,[...(synth.travaux_urgents||[]).map(t=>"🔧 "+t),...(synth.travaux_valorisants||[]).map(t=>"📈 "+t)],"#7EC8C8"],
+                  [L.defauts,[...(synth.points_faibles||[]),...(synth.defauts_critiques||[]).map(d=>" "+d)],C.err],
+                  [L.travaux,[...(synth.travaux_urgents||[]).map(t=>" "+t),...(synth.travaux_valorisants||[]).map(t=>" "+t)],"#7EC8C8"],
                   [L.retouches,synth.suggestions_retouche_globales,C.gold],
                 ].map(([title,items,col])=>(
                   <div key={title} style={{background:"#06060F",borderRadius:10,padding:"12px"}}>
@@ -2240,7 +2240,7 @@ ${profil.nomAgence?`<div class="contact">
                     {(items||[]).map((p,i)=>(
                       <div key={i} style={{fontSize:11,color:"#666",padding:"4px 0",
                         borderBottom:`1px solid ${C.brd}`,lineHeight:1.5}}>
-                        <span style={{color:col}}>›</span> {p}
+                        <span style={{color:col}}></span> {p}
                       </div>
                     ))}
                     {!items?.length&&<div style={{fontSize:10,color:"#333"}}>Aucun</div>}
@@ -2254,15 +2254,15 @@ ${profil.nomAgence?`<div class="contact">
                   <div style={{fontSize:12,color:"#888",lineHeight:1.7,fontStyle:"italic"}}>{synth.conseil_mise_en_vente}</div>
                   {synth.profil_acheteur&&(
                     <div style={{marginTop:8,fontSize:12,color:C.acc}}>
-                      👤 {L.profil}: <strong>{synth.profil_acheteur}</strong>
+                       {L.profil}: <strong>{synth.profil_acheteur}</strong>
                     </div>
                   )}
                 </div>
               )}
-              {/* Pense-bêtes */}
+              {/* Pense-betes */}
               {synth.pense_betes?.length>0&&(
                 <div style={{background:"#06060F",borderRadius:10,padding:"12px",marginBottom:12}}>
-                  <div style={{fontSize:10,color:C.acc,marginBottom:8,letterSpacing:1}}>📌 {L.penseBetes}</div>
+                  <div style={{fontSize:10,color:C.acc,marginBottom:8,letterSpacing:1}}> {L.penseBetes}</div>
                   {synth.pense_betes.map((p,i)=>(
                     <div key={i} style={{display:"flex",gap:8,padding:"5px 0",borderBottom:`1px solid ${C.brd}`}}>
                       <span style={{color:C.acc,fontWeight:700,minWidth:18}}>{i+1}.</span>
@@ -2274,7 +2274,7 @@ ${profil.nomAgence?`<div class="contact">
               {/* Mentions */}
               <div style={{background:"#06060F",borderRadius:10,padding:"12px"}}>
                 <div style={{fontSize:10,color:"#555",marginBottom:8,letterSpacing:1}}>
-                  {L.mentions} — {COUNTRIES[meta.pays]}
+                  {L.mentions} -- {COUNTRIES[meta.pays]}
                 </div>
                 <div style={{fontSize:10,color:"#555",lineHeight:1.7}}>{LEGAL[meta.pays]||LEGAL.fr}</div>
               </div>
@@ -2287,7 +2287,7 @@ ${profil.nomAgence?`<div class="contact">
       <div style={{padding:"10px 16px",background:"#060610",borderTop:`1px solid ${C.brd}`,
         flexShrink:0,display:"flex",gap:10,justifyContent:"space-between",alignItems:"center"}}>
         <div style={{fontSize:10,color:"#444"}}>
-          {photos.length} photo{photos.length>1?"s":""} · {analyses.filter(a=>!a.error).length} analysée{analyses.filter(a=>!a.error).length>1?"s":""}
+          {photos.length} photo{photos.length>1?"s":""} . {analyses.filter(a=>!a.error).length} analysee{analyses.filter(a=>!a.error).length>1?"s":""}
         </div>
         <div style={{display:"flex",gap:8}}>
           {synth&&!annonce&&(
@@ -2314,4 +2314,4 @@ ${profil.nomAgence?`<div class="contact">
   );
 }
 
-// Zaymmo v1 — fin
+// Zaymmo v1 -- fin
