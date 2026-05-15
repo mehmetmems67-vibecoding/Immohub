@@ -1437,7 +1437,7 @@ ${profil.nomAgence?`<div class="contact">
                   setStep("analyse");setShowHistory(false);
                 }} style={{fontSize:10,padding:"4px 8px",borderRadius:6,
                   background:C.acc+"20",color:C.acc,border:`1px solid ${C.acc}40`}}>
-                  <- Rouvrir
+                  Rouvrir
                 </button>
                 {isAdmin&&<button onClick={()=>deleteHistoryEntry(h.id)}
                   style={{fontSize:10,padding:"4px 8px",borderRadius:6,
@@ -1901,7 +1901,7 @@ ${profil.nomAgence?`<div class="contact">
                 <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                   {revHist.length>0&&(
                     <button onClick={()=>{setAnnonce(revHist[revHist.length-1]);setRevHist(h=>h.slice(0,-1));}}
-                      style={{...btn(C.surf,C.muted,{border:`1px solid ${C.brd}`,fontSize:11,padding:"7px 12px"})}}><-</button>
+                      style={{...btn(C.surf,C.muted,{border:`1px solid ${C.brd}`,fontSize:11,padding:"7px 12px"})}}>Annuler</button>
                   )}
                   <button onClick={()=>setRevMode(m=>!m)}
                     style={{...btn(revMode?C.acc:C.acc+"20",revMode?"#fff":C.acc,
