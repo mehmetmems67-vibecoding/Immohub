@@ -302,7 +302,7 @@ const LANG_INSTRUCTIONS = {
   fr: "Tu es un redacteur immobilier expert. Redige TOUT en francais uniquement. Aucun mot dans une autre langue.",
   en: "You are an expert real estate copywriter. Write EVERYTHING in English only. No French, no German. Full paragraphs, rich vocabulary.",
   de: "Du bist ein Immobilien-Texter. Schreibe ALLES auf Deutsch. Kein Franzosisch, kein Englisch. Vollstandige Absatze, reichhaltig.",
-  lu: "Dir sidd en Immobilien-Texter. Schreift ALLES op Letzebuergesch. Kee Franseisch, keen Daitsch. Letzebuergesch Wierder: Haus, Wunnung, Schlofzemmer, Kichen, Gaart, Terrass, Prais, Zemmer, Hell, Grouss, Schein, Roueg. Vollstanneg Absatz.",
+  lu: "Schreif ALLES op Letzebuergesch. NUR LETZEBUERGESCH. WICHTEG REEGELEN: Quadratmeter (keng Akzenter), vu Letzebuerg (net vun virun L), wouer Investitioun (net wahre), Plafongshecht (mat G), Beliichtung (net Beleuchtung), Keller (net Cave), e modernen Lift (net Aufzuch), Miwwele (net Moblement). BEISPILL: Dese spektakulare Loft vu 100 Quadratmeter lait am Haerzche vu Letzebuerg an ass eng wouer Investitioun. Schreif 4 vollstanneg Abschnitter.",
   nl: "U bent een vastgoed-copywriter. Schrijf ALLES in het Nederlands (Belgisch). Geen Frans, geen Duits. Volledige paragrafen, rijke woordenschat.",
 };
 
@@ -667,6 +667,8 @@ export default function App(){
 function Zaymmo({currentUser, onLogout}){
   const isAdmin = currentUser?.role==="admin";
   const [lang,setLang]=useState("fr");
+  // Page d'accueil
+  const [homepage,setHomepage]=useState(true); // true = page accueil, false = pipeline
   const L=I18N[lang]||I18N.fr;
   const [step,setStep]=useState("fiche");
   const [photos,setPhotos]=useState([]);
@@ -715,7 +717,9 @@ function Zaymmo({currentUser, onLogout}){
     devise:"EUR",langAnnonce:"fr",
     cave:false,parking:false,terrasse:false,balcon:false,jardin:false,
     ascenseur:false,double_vitrage:false,fibre:false,piscine:false,
-    gardien:false,digicode:false,cellier:false,buanderie:false,
+    gardien:false,digicode:false,cellier:false,buanderie:false,triple_vitrage:false,
+    conso_kwh_n1:"",conso_eur_n1:"",
+    conso_kwh_n2:"",conso_eur_n2:"",
   });
 
   // Profil professionnel
@@ -818,6 +822,11 @@ function Zaymmo({currentUser, onLogout}){
               etat: s.etat_global||"NC",
               meta: {...meta},
               synth: s,
+              annonce: null,
+              annonces: {},
+              photos_urls: photos.filter(p=>p.preview).map(p=>p.preview).slice(0,3),
+              timeline: [{action:"Analyse", date:new Date().toISOString(), user:currentUser?.name||"Admin"}],
+              exported: [],
             };
             const newHistory = [entry, ...getHistory()].slice(0,50);
             saveHistory(newHistory);
@@ -842,6 +851,16 @@ function Zaymmo({currentUser, onLogout}){
         setAnnonce(a);
         setAnnonces(prev=>({...prev,[meta.langAnnonce]:a}));
         setActiveLang(meta.langAnnonce);
+        // Sauvegarder annonce dans historique
+        const hist = getHistory();
+        if(hist.length>0){
+          hist[0].annonce = a;
+          hist[0].annonces = {...(hist[0].annonces||{}),[meta.langAnnonce]:a};
+          hist[0].timeline = [...(hist[0].timeline||[]),
+            {action:"Annonce "+meta.langAnnonce.toUpperCase(), date:new Date().toISOString(), user:currentUser?.name||"Admin"}];
+          saveHistory(hist);
+          setHistory(hist);
+        }
       }
     }catch(e){if(mountedRef.current)setError("Erreur: "+e.message);}
     finally{if(mountedRef.current){setLoading(false);setLoadMsg("");}}
@@ -880,11 +899,12 @@ function Zaymmo({currentUser, onLogout}){
     setLoading(true);setLoadMsg("Revision...");
     try{
       const r=await callClaude([{role:"user",
-        content:`TEXTE:\n"""\n${annonce.description_longue}\n"""\nINSTRUCTION: ${revInstr}\nJSON: {"description_longue":"..."}`}],
+        content:`TEXTE:\n"""\n${annonce.description_longue}\n"""\nINSTRUCTION: ${revInstr}. REGLE: si tu raccourcis, garde EXACTEMENT 50% du texte, pas moins. Conserve le style et les infos cles.\nJSON: {"description_longue":"..."}`}],
         "Editeur immobilier. Modifie UNIQUEMENT ce qui est demande. JSON sans backticks.");
       if(r.description_longue&&mountedRef.current){
-        setRevHist(h=>[...h,annonce]);
-        setAnnonce(a=>({...a,description_longue:r.description_longue}));
+        const currentAnnonce = annonce;
+        setRevHist(h=>[...h,currentAnnonce]);
+        setAnnonce({...currentAnnonce,description_longue:r.description_longue});
         setRevInstr("");
       }
     }catch(e){setError(e.message);}
@@ -1123,6 +1143,25 @@ ${profil.nomAgence?`<div class="contact">
   function deleteHistoryEntry(id){
     const updated=history.filter(h=>h.id!==id);
     saveHistory(updated);setHistory(updated);
+  }
+
+  function exportToPlatform(platformName){
+    // Copier l'annonce et noter l'export dans l'historique
+    if(!annonce)return;
+    const txt=(annonce.titre_principal||"")+"
+
+"+(annonce.description_longue||"");
+    try{navigator.clipboard.writeText(txt);}catch{}
+    // Mettre a jour historique
+    const hist=getHistory();
+    if(hist.length>0){
+      hist[0].exported=[...(hist[0].exported||[]),
+        {platform:platformName,date:new Date().toISOString()}];
+      hist[0].timeline=[...(hist[0].timeline||[]),
+        {action:"Exporte sur "+platformName,date:new Date().toISOString(),user:currentUser?.name||"Admin"}];
+      saveHistory(hist);setHistory(hist);
+    }
+    setCopied(true);setTimeout(()=>{if(mountedRef.current)setCopied(false);},2500);
   }
 
   function downloadFiche(){
@@ -1433,8 +1472,12 @@ ${profil.nomAgence?`<div class="contact">
               </div>
               <div style={{display:"flex",gap:6}}>
                 <button onClick={()=>{
-                  setMeta(h.meta);setSynth(h.synth);
-                  setStep("analyse");setShowHistory(false);
+                  setMeta(h.meta);
+                  setSynth(h.synth);
+                  if(h.annonce){setAnnonce(h.annonce);setStep("annonce");}
+                  else{setStep("analyse");}
+                  if(h.annonces){setAnnonces(h.annonces);}
+                  setShowHistory(false);setHomepage(false);
                 }} style={{fontSize:10,padding:"4px 8px",borderRadius:6,
                   background:C.acc+"20",color:C.acc,border:`1px solid ${C.acc}40`}}>
                   Rouvrir
@@ -1519,7 +1562,36 @@ ${profil.nomAgence?`<div class="contact">
         </div>
       )}
 
-      {/* CONTENU */}
+            {/* PAGE ACCUEIL */}
+      {homepage?(
+        <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",
+          justifyContent:"center",padding:"30px 20px",gap:20}}>
+          <div style={{textAlign:"center",marginBottom:4}}>
+            <div style={{fontSize:13,color:C.muted}}>Bonjour <span style={{color:C.gold,fontWeight:700}}>{currentUser?.name||"Admin"}</span></div>
+            <div style={{fontSize:10,color:"#333",marginTop:3}}>Que souhaitez-vous faire ?</div>
+          </div>
+          <button onClick={()=>setHomepage(false)}
+            style={{...btn("linear-gradient(135deg,#7C6FFF,#4AE88A)"),
+              width:"100%",maxWidth:300,padding:"22px 20px",borderRadius:14,
+              display:"flex",flexDirection:"column",alignItems:"center",gap:6,
+              boxShadow:"0 6px 24px #7C6FFF40"}}>
+            <span style={{fontSize:32}}>+</span>
+            <span style={{fontWeight:900,fontSize:15}}>Nouvelle annonce</span>
+            <span style={{fontSize:10,opacity:0.8}}>Analyser un nouveau bien</span>
+          </button>
+          <button onClick={()=>{setShowHistory(true);setHomepage(false);}}
+            style={{...btn(C.surf,C.acc),
+              width:"100%",maxWidth:300,padding:"22px 20px",borderRadius:14,
+              display:"flex",flexDirection:"column",alignItems:"center",gap:6,
+              border:`2px solid ${C.acc}50`}}>
+            <span style={{fontSize:32}}>H</span>
+            <span style={{fontWeight:900,fontSize:15}}>Historique</span>
+            <span style={{fontSize:10,color:C.muted}}>{history.length} bien{history.length>1?"s":""} analyses</span>
+          </button>
+        </div>
+      ):(
+      <>
+{/* CONTENU */}
       <div style={{flex:1,overflowY:"auto",padding:"14px 16px"}}>
 
         {/* -- FICHE BIEN -- PAYS EN PREMIER -- */}
@@ -1658,6 +1730,44 @@ ${profil.nomAgence?`<div class="contact">
                 <option value="nl">BE Nederlands</option>
               </select>
             </MF>
+          </div>
+
+          {/* Consommation energetique */}
+          <div style={{background:"#0A0A1E",borderRadius:10,padding:"12px 14px",
+            border:`1px solid ${C.acc}20`,marginBottom:12}}>
+            <div style={{fontSize:10,color:C.acc,letterSpacing:1,marginBottom:10,fontWeight:700}}>
+              CONSOMMATION ENERGETIQUE ANNUELLE
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:8}}>
+              <div style={{fontSize:10,color:C.muted,gridColumn:"1/-1",letterSpacing:1}}>
+                ANNEE N-1 ({new Date().getFullYear()-1})
+              </div>
+              <MF label="kWh">
+                <input type="number" value={meta.conso_kwh_n1||""}
+                  onChange={e=>setM("conso_kwh_n1",e.target.value)}
+                  placeholder="ex: 8500" style={{...inp,padding:"8px 10px"}}/>
+              </MF>
+              <MF label={"Cout ("+dev+")"}>
+                <input type="number" value={meta.conso_eur_n1||""}
+                  onChange={e=>setM("conso_eur_n1",e.target.value)}
+                  placeholder="ex: 1200" style={{...inp,padding:"8px 10px"}}/>
+              </MF>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <div style={{fontSize:10,color:C.muted,gridColumn:"1/-1",letterSpacing:1}}>
+                ANNEE N-2 ({new Date().getFullYear()-2})
+              </div>
+              <MF label="kWh">
+                <input type="number" value={meta.conso_kwh_n2||""}
+                  onChange={e=>setM("conso_kwh_n2",e.target.value)}
+                  placeholder="ex: 9200" style={{...inp,padding:"8px 10px"}}/>
+              </MF>
+              <MF label={"Cout ("+dev+")"}>
+                <input type="number" value={meta.conso_eur_n2||""}
+                  onChange={e=>setM("conso_eur_n2",e.target.value)}
+                  placeholder="ex: 1350" style={{...inp,padding:"8px 10px"}}/>
+              </MF>
+            </div>
           </div>
           <div style={{fontSize:11,color:C.muted,letterSpacing:1,marginBottom:10}}>{L.equipements}</div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>
@@ -2202,6 +2312,50 @@ ${profil.nomAgence?`<div class="contact">
           </div>
         )}
 
+
+        {/* EXPORT VERS PLATEFORMES */}
+        {annonce&&(
+          <div style={{animation:"fadeUp 0.3s ease"}}>
+            <Card>
+              <ST color={C.gold}>EXPORTER VERS LES PLATEFORMES</ST>
+              <div style={{fontSize:11,color:C.muted,marginBottom:12}}>
+                Copie l'annonce et note l'export dans l'historique
+              </div>
+              {/* Plateformes du pays selectionne */}
+              <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10}}>
+                {(PLATFORMS[meta.pays]||PLATFORMS.fr).map(p=>(
+                  <button key={p.id} onClick={()=>exportToPlatform(p.name)}
+                    style={{padding:"10px 14px",borderRadius:8,fontSize:12,fontWeight:700,
+                      background:p.color,color:"#fff",border:"none",
+                      display:"flex",alignItems:"center",gap:6}}>
+                    {p.logo} {p.name}
+                  </button>
+                ))}
+              </div>
+              {copied&&(
+                <div style={{fontSize:12,color:C.green,padding:"8px 12px",
+                  background:C.green+"15",borderRadius:8,border:`1px solid ${C.green}30`}}>
+                  Annonce copiee dans le presse-papier !
+                </div>
+              )}
+              {/* Timeline si historique existant */}
+              {history.length>0&&history[0].timeline?.length>0&&(
+                <div style={{marginTop:12}}>
+                  <div style={{fontSize:10,color:C.acc,marginBottom:6,letterSpacing:1}}>
+                    TIMELINE DE CE BIEN
+                  </div>
+                  {history[0].timeline.map((t,i)=>(
+                    <div key={i} style={{fontSize:10,color:"#555",padding:"3px 0",
+                      borderBottom:`1px solid ${C.brd}`,display:"flex",justifyContent:"space-between"}}>
+                      <span style={{color:C.acc}}>{t.action}</span>
+                      <span>{new Date(t.date).toLocaleDateString("fr-FR")} - {t.user}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </div>
+        )}
         {/* -- FICHE INTERNE -- */}
         {synth&&annonce&&step==="fiche_interne"&&(
           <div style={{animation:"fadeUp 0.4s ease"}}>
@@ -2283,6 +2437,14 @@ ${profil.nomAgence?`<div class="contact">
         )}
       </div>
 
+      )}
+      )}
+      </>
+      )}
+      </>
+      )}
+      </>
+      )}
       {/* BARRE BAS */}
       <div style={{padding:"10px 16px",background:"#060610",borderTop:`1px solid ${C.brd}`,
         flexShrink:0,display:"flex",gap:10,justifyContent:"space-between",alignItems:"center"}}>
@@ -2306,6 +2468,19 @@ ${profil.nomAgence?`<div class="contact">
             <button onClick={()=>setStep("fiche_interne")}
               style={{...btn(C.green+"20",C.green,{border:`1px solid ${C.green}40`,fontSize:11,padding:"8px 14px"})}}>
               {L.ficheTitle}
+            </button>
+          )}
+          {(annonce||synth)&&(
+            <button onClick={()=>{
+              setSynth(null);setAnnonce(null);setAnal([]);setPhotos([]);
+              setAnnonces({});setRevHist([]);setStep("fiche");
+              setMeta(m=>({...m,surface:"",pieces:"",chambres:"",ville:"",prix:"",
+                charges:"",etage:"",annee:"",terrain:"",
+                conso_kwh_n1:"",conso_eur_n1:"",conso_kwh_n2:"",conso_eur_n2:""}));
+              setHomepage(false);
+            }}
+              style={{...btn("#1A0A0A","#E84A4A",{border:"1px solid #E84A4A30",fontSize:11,padding:"8px 14px"})}}>
+              + Nouveau bien
             </button>
           )}
         </div>
