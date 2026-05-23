@@ -1148,7 +1148,9 @@ ${profil.nomAgence?`<div class="contact">
   function exportToPlatform(platformName){
     // Copier l'annonce et noter l'export dans l'historique
     if(!annonce)return;
-  const txt=(annonce.titre_principal||"")+"\n\n"+(annonce.description_longue||"");
+    const txt=(annonce.titre_principal||"")+"
+
+"+(annonce.description_longue||"");
     try{navigator.clipboard.writeText(txt);}catch{}
     // Mettre a jour historique
     const hist=getHistory();
@@ -2435,12 +2437,6 @@ ${profil.nomAgence?`<div class="contact">
         )}
       </div>
 
-      )}
-      )}
-      </>
-      )}
-      </>
-      )}
       </>
       )}
       {/* BARRE BAS */}
