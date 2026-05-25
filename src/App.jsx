@@ -84,7 +84,7 @@ const I18N = {
     equip:[["cave"," Cave"],["parking"," Parking"],["terrasse"," Terrasse"],
            ["balcon"," Balcon"],["jardin"," Jardin"],["ascenseur"," Ascenseur"],
            ["piscine"," Piscine"],["gardien"," Gardien"],["digicode"," Digicode"],
-           ["double_vitrage"," Double vitrage"],["fibre"," Fibre"]],
+           ["double_vitrage"," Double vitrage"],["triple_vitrage"," Triple vitrage"],["fibre"," Fibre"]],
   },
   en:{
     steps:["Property Info","Photos","Analysis","Listing","Preview","Internal Sheet"],
@@ -117,7 +117,7 @@ const I18N = {
     equip:[["cave"," Cellar"],["parking"," Parking"],["terrasse"," Terrace"],
            ["balcon"," Balcony"],["jardin"," Garden"],["ascenseur"," Elevator"],
            ["piscine"," Pool"],["gardien"," Concierge"],["digicode"," Keypad"],
-           ["double_vitrage"," Double glazing"],["fibre"," Fibre"]],
+           ["double_vitrage"," Double glazing"],["triple_vitrage"," Triple glazing"],["fibre"," Fibre"]],
   },
   de:{
     steps:["Objektdaten","Fotos","Analyse","Anzeige","Vorschau","Interne Akte"],
@@ -150,7 +150,7 @@ const I18N = {
     equip:[["cave"," Keller"],["parking"," Parkplatz"],["terrasse"," Terrasse"],
            ["balcon"," Balkon"],["jardin"," Garten"],["ascenseur"," Aufzug"],
            ["piscine"," Pool"],["gardien"," Hausmeister"],["digicode"," Turcode"],
-           ["double_vitrage"," Doppelverglasung"],["fibre"," Glasfaser"]],
+           ["double_vitrage"," Doppelverglasung"],["triple_vitrage"," Dreifachverglasung"],["fibre"," Glasfaser"]],
   },
   lu:{
     steps:["Infos bien","Fotoen","Analyse","Annonce","Virschau","Intern Blat"],
@@ -183,7 +183,7 @@ const I18N = {
     equip:[["cave"," Keller"],["parking"," Parkplaz"],["terrasse"," Terrasse"],
            ["balcon"," Balkon"],["jardin"," Gaart"],["ascenseur"," Lift"],
            ["piscine"," Schwammbad"],["gardien"," Gardist"],["digicode"," Duercode"],
-           ["double_vitrage"," Duebelgliesung"],["fibre"," Glasfaser"]],
+           ["double_vitrage"," Duebelgliesung"],["triple_vitrage"," Dräifachgliesung"],["fibre"," Glasfaser"]],
   },
   nl:{
     steps:["Objectinfo","Foto's","Analyse","Advertentie","Voorbeeld","Intern dossier"],
@@ -216,7 +216,7 @@ const I18N = {
     equip:[["cave"," Kelder"],["parking"," Parking"],["terrasse"," Terras"],
            ["balcon"," Balkon"],["jardin"," Tuin"],["ascenseur"," Lift"],
            ["piscine"," Zwembad"],["gardien"," Concierge"],["digicode"," Digicode"],
-           ["double_vitrage"," Dubbele beglazing"],["fibre"," Glasvezel"]],
+           ["double_vitrage"," Dubbele beglazing"],["triple_vitrage"," Drievoudige beglazing"],["fibre"," Glasvezel"]],
   },
 };
 
@@ -339,6 +339,9 @@ ATOUTS: ${(synth.points_forts||[]).join(", ")}
 EQUIPEMENTS: ${["cave","parking","terrasse","balcon","jardin","ascenseur","piscine","cellier","buanderie"].filter(k=>meta[k]).join(", ")||"standard"}
 ${terrainInfo}
 ${profilInfo}${aiFindings}
+
+INFOS OBLIGATOIRES a inclure: ${meta.pieces?meta.pieces+" pieces":""} ${meta.chambres?meta.chambres+" chambres":""} ${meta.terrain?"terrain "+meta.terrain+"m2":""} ${meta.sous_sol?"sous-sol "+meta.sous_sol+"m2":""} ${meta.cheminee?"cheminee":""}${meta.dressing?" dressing":""}.
+TERMINER par: "Contactez ${profil?.nomAgent||"notre equipe"} ${profil?.telephone?"au "+profil.telephone+".":""} ${profil?.email||""}."
 
 INSTRUCTIONS STRICTES:
 - description_courte: exactement 120-150 mots, 2 paragraphes complets
@@ -691,6 +694,8 @@ function Zaymmo({currentUser, onLogout}){
   const [users,setUsers]=useState(()=>getUsers());
   const [newUserName,setNewUserName]=useState("");
   const [newUserPwd,setNewUserPwd]=useState("");
+  const [savedList,setSavedList]=useState(()=>JSON.parse(localStorage.getItem("zaymmo_saved")||"[]"));
+  const [showSaved,setShowSaved]=useState(false);
   const [copied,setCopied]=useState(false);
   const [revMode,setRevMode]=useState(false);
   const [revInstr,setRevInstr]=useState("");
@@ -716,10 +721,11 @@ function Zaymmo({currentUser, onLogout}){
     chauffage:"Collectif gaz",exposition:"Non renseignee",
     devise:"EUR",langAnnonce:"fr",
     cave:false,parking:false,terrasse:false,balcon:false,jardin:false,
-    ascenseur:false,double_vitrage:false,fibre:false,piscine:false,
+    ascenseur:false,double_vitrage:false,triple_vitrage:false,fibre:false,piscine:false,
     gardien:false,digicode:false,cellier:false,buanderie:false,triple_vitrage:false,
     conso_kwh_n1:"",conso_eur_n1:"",
     conso_kwh_n2:"",conso_eur_n2:"",
+    cheminee:false,sous_sol:"",dressing:false,
   });
 
   // Profil professionnel
@@ -1140,6 +1146,29 @@ ${profil.nomAgence?`<div class="contact">
     saveUsers(updated);setUsers(updated);
   }
 
+
+  // Sauvegarder annonce explicitement
+  function saveAnnonce(){
+    if(!annonce||!synth)return;
+    const saved = JSON.parse(localStorage.getItem("zaymmo_saved")||"[]");
+    const entry = {
+      id: Date.now().toString(),
+      savedAt: new Date().toISOString(),
+      user: currentUser?.name||"Admin",
+      label: (meta.type||"Bien")+" - "+(meta.ville||"NC")+" - "+(new Date().toLocaleDateString("fr-FR")),
+      meta: {...meta},
+      synth: synth,
+      annonce: annonce,
+      annonces: {...annonces},
+      photos_urls: photos.filter(p=>p.preview).map(p=>p.preview).slice(0,3),
+    };
+    const updated = [entry, ...saved].slice(0,30);
+    localStorage.setItem("zaymmo_saved", JSON.stringify(updated));
+    setSavedList(updated);
+    // Feedback visuel
+    setError(null);
+    alert("Annonce sauvegardee !");
+  }
   function deleteHistoryEntry(id){
     const updated=history.filter(h=>h.id!==id);
     saveHistory(updated);setHistory(updated);
@@ -1369,6 +1398,11 @@ ${profil.nomAgence?`<div class="contact">
         </div>
 
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          {/* Bouton retour accueil */}
+          <button onClick={()=>{setHomepage(true);setShowHistory(false);setShowAdmin(false);}}
+            style={{...btn(C.surf,C.muted,{border:`1px solid ${C.brd}`,fontSize:11,padding:"6px 10px"})}}>
+            Accueil
+          </button>
           {/* Bouton profil pro */}
           <button onClick={()=>setProfilOpen(p=>!p)}
             style={{...btn(profilOpen?C.gold+"20":C.surf,profilOpen?C.gold:C.muted,
@@ -1539,6 +1573,44 @@ ${profil.nomAgence?`<div class="contact">
           </div>
         </div>
       )}
+      {/* ANNONCES SAUVEGARDEES */}
+      {showSaved&&!homepage&&(
+        <div style={{padding:"14px 16px",background:"#1A1400",
+          borderBottom:`1px solid ${C.gold}30`,animation:"fadeUp 0.2s ease",maxHeight:360,overflowY:"auto"}}>
+          <div style={{fontSize:11,color:C.gold,marginBottom:12,letterSpacing:1,fontWeight:700}}>
+            SV ANNONCES SAUVEGARDEES ({savedList.length})
+          </div>
+          {savedList.length===0&&<div style={{fontSize:12,color:"#444"}}>Aucune annonce sauvegardee</div>}
+          {savedList.map(s=>(
+            <div key={s.id} style={{background:C.surf,borderRadius:8,padding:"10px 12px",
+              marginBottom:8,border:`1px solid ${C.gold}30`}}>
+              <div style={{fontSize:12,fontWeight:700,color:C.gold,marginBottom:4}}>{s.label}</div>
+              <div style={{fontSize:10,color:"#555",marginBottom:8}}>
+                {new Date(s.savedAt).toLocaleDateString("fr-FR")} - {s.user}
+              </div>
+              <div style={{display:"flex",gap:6}}>
+                <button onClick={()=>{
+                  setMeta(s.meta);setSynth(s.synth);
+                  setAnnonce(s.annonce);
+                  if(s.annonces)setAnnonces(s.annonces);
+                  setActiveLang(Object.keys(s.annonces||{})[0]||"fr");
+                  setStep("annonce");setShowSaved(false);
+                }} style={{fontSize:10,padding:"4px 10px",borderRadius:6,
+                  background:C.gold+"20",color:C.gold,border:`1px solid ${C.gold}40`}}>
+                  Rouvrir
+                </button>
+                <button onClick={()=>{
+                  const updated=savedList.filter(x=>x.id!==s.id);
+                  localStorage.setItem("zaymmo_saved",JSON.stringify(updated));
+                  setSavedList(updated);
+                }} style={{fontSize:10,color:C.err,background:"transparent",border:"none",cursor:"pointer"}}>
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
       <div style={{padding:"10px 16px",background:"#060610",
         borderBottom:`1px solid ${C.brd}`,flexShrink:0}}>
         <Steps current={step} L={L}/>
@@ -1582,9 +1654,18 @@ ${profil.nomAgence?`<div class="contact">
               width:"100%",maxWidth:300,padding:"22px 20px",borderRadius:14,
               display:"flex",flexDirection:"column",alignItems:"center",gap:6,
               border:`2px solid ${C.acc}50`}}>
-            <span style={{fontSize:32}}>H</span>
+            <span style={{fontSize:32}}>HS</span>
             <span style={{fontWeight:900,fontSize:15}}>Historique</span>
             <span style={{fontSize:10,color:C.muted}}>{history.length} bien{history.length>1?"s":""} analyses</span>
+          </button>
+          <button onClick={()=>{setShowSaved(true);setHomepage(false);}}
+            style={{...btn(C.surf,C.gold),
+              width:"100%",maxWidth:300,padding:"22px 20px",borderRadius:14,
+              display:"flex",flexDirection:"column",alignItems:"center",gap:6,
+              border:`2px solid ${C.gold}50`}}>
+            <span style={{fontSize:32}}>SV</span>
+            <span style={{fontWeight:900,fontSize:15}}>Annonces sauvegardees</span>
+            <span style={{fontSize:10,color:C.muted}}>{savedList.length} annonce{savedList.length>1?"s":""} sauvegardee{savedList.length>1?"s":""}</span>
           </button>
         </div>
       ):(
@@ -1730,6 +1811,34 @@ ${profil.nomAgence?`<div class="contact">
             </MF>
           </div>
 
+
+          {/* Champs optionnels */}
+          <div style={{background:"#0A0A1E",borderRadius:10,padding:"12px 14px",
+            border:`1px solid ${C.acc}20`,marginBottom:12}}>
+            <div style={{fontSize:10,color:C.acc,letterSpacing:1,marginBottom:10,fontWeight:700}}>
+              CARACTERISTIQUES SUPPLEMENTAIRES
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:8}}>
+              <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,
+                color:meta.cheminee?C.text:"#555",cursor:"pointer",padding:"4px 0"}}>
+                <input type="checkbox" checked={!!meta.cheminee}
+                  onChange={e=>setM("cheminee",e.target.checked)}/>
+                Cheminee
+              </label>
+              <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,
+                color:meta.dressing?C.text:"#555",cursor:"pointer",padding:"4px 0"}}>
+                <input type="checkbox" checked={!!meta.dressing}
+                  onChange={e=>setM("dressing",e.target.checked)}/>
+                Dressing
+              </label>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:5}}>
+              <label style={{fontSize:11,color:C.muted,letterSpacing:1}}>SOUS-SOL (m2)</label>
+              <input type="number" value={meta.sous_sol||""}
+                onChange={e=>setM("sous_sol",e.target.value)}
+                placeholder="ex: 270" style={{...inp,padding:"8px 10px"}}/>
+            </div>
+          </div>
           {/* Consommation energetique */}
           <div style={{background:"#0A0A1E",borderRadius:10,padding:"12px 14px",
             border:`1px solid ${C.acc}20`,marginBottom:12}}>
@@ -2159,7 +2268,7 @@ ${profil.nomAgence?`<div class="contact">
                     {annonce.titre_principal}
                   </div>
                   {annonce.points_cles?.length>0&&(
-                    <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
+                    <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12,maxWidth:"100%"}}>
                       {annonce.points_cles.map((p,i)=>(
                         <span key={i} style={{fontSize:11,padding:"4px 10px",borderRadius:12,
                           background:C.acc+"18",color:C.acc,border:`1px solid ${C.acc}30`}}>{p}</span>
@@ -2222,7 +2331,7 @@ ${profil.nomAgence?`<div class="contact">
               {(()=>{
                 const p=currPlats.find(x=>x.id===platform)||currPlats[0];
                 const titre=annonce.titre_court||annonce.titre_principal;
-                const desc=annonce.description_courte||annonce.description_longue;
+                const desc=annonce.description_longue||annonce.description_courte;
                 return(
                   <div style={{border:`2px solid ${p.color}40`,borderRadius:12,overflow:"hidden",background:"#fff"}}>
                     <div style={{background:p.color,padding:"10px 16px",display:"flex",alignItems:"center",gap:8}}>
