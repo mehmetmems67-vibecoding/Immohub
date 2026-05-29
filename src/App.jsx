@@ -1208,29 +1208,18 @@ ${profil.nomAgence?`<div class="contact">
       setTranscribing(true);
       try{
         const cleaned=await callClaude([{role:"user",
-          content:"Transcription brute: "+transcript+
-          "
-
-Nettoie ce texte: supprime les hesitations (euh, ah, ben, hm), "+
-          "corrige les repetitions, reformule proprement en gardant TOUTES les informations. "+
-          "Retourne UNIQUEMENT le texte nettoye, sans commentaire."}],
+          content:"Transcription brute: "+transcript+"\n\nNettoie ce texte: supprime les hesitations (euh, ah, ben, hm), corrige les repetitions, reformule proprement en gardant TOUTES les informations. Retourne UNIQUEMENT le texte nettoye, sans commentaire."}],
           "Tu es un correcteur de transcription vocale. Retourne uniquement le texte corrige.");
         if(cleaned&&typeof cleaned==="string"){
-          setM("notes_agent",(meta.notes_agent||"")+(meta.notes_agent?"
-":"")+cleaned.trim());
-        } else if(cleaned&&cleaned.description_longue){
-          setM("notes_agent",(meta.notes_agent||"")+(meta.notes_agent?"
-":"")+transcript.trim());
+          setM("notes_agent",(meta.notes_agent||"")+(meta.notes_agent?"\n":"")+cleaned.trim());
         } else {
-          setM("notes_agent",(meta.notes_agent||"")+(meta.notes_agent?"
-":"")+transcript.trim());
+          setM("notes_agent",(meta.notes_agent||"")+(meta.notes_agent?"\n":"")+transcript.trim());
         }
       }catch(err){
-        setM("notes_agent",(meta.notes_agent||"")+(meta.notes_agent?"
-":"")+transcript.trim());
-      }finally{setTranscribing(false);}
+        setM("notes_agent",(meta.notes_agent||"")+(meta.notes_agent?"\n":"")+transcript.trim());
     };
     rec.start();
+  }
   }
   function deleteHistoryEntry(id){
     const updated=history.filter(h=>h.id!==id);
