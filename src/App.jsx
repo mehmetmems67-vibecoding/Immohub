@@ -54,7 +54,7 @@ function clearSession() {
 // -- TRADUCTIONS ---------------------------------------
 const I18N = {
   fr:{
-    steps:["Infos bien","Photos","Analyse","Annonce","Apercu","Fiche interne"],
+    steps:["Photos","Analyse","Infos bien","Notes","Annonce","Apercu","Fiche interne"],
     icons:["","","","","",""],
     typeBien:"Type de bien",surface:"Surface (m2)",prix:"Prix de vente",
     ville:"Ville / Quartier",pieces:"Nb pieces",chambres:"Nb chambres",
@@ -153,7 +153,7 @@ const I18N = {
            ["double_vitrage"," Doppelverglasung"],["triple_vitrage"," Dreifachverglasung"],["fibre"," Glasfaser"]],
   },
   lu:{
-    steps:["Infos bien","Fotoen","Analyse","Annonce","Virschau","Intern Blat"],
+    steps:["Fotoen","Analyse","Infos Bett","Notizen","Annonce","Virschau","Intern Blat"],
     icons:["","","","","",""],
     typeBien:"Typ",surface:"Flach (m2)",prix:"Verkaafsprais",
     ville:"Stad / Quartier",pieces:"Stecker",chambres:"Schlofzemmer",
@@ -339,6 +339,7 @@ ATOUTS: ${(synth.points_forts||[]).join(", ")}
 EQUIPEMENTS: ${["cave","parking","terrasse","balcon","jardin","ascenseur","piscine","cellier","buanderie"].filter(k=>meta[k]).join(", ")||"standard"}
 ${terrainInfo}
 ${profilInfo}${aiFindings}
+${meta.notes_agent?"NOTES AGENT: "+meta.notes_agent:""}
 
 INFOS OBLIGATOIRES a inclure: ${meta.pieces?meta.pieces+" pieces":""} ${meta.chambres?meta.chambres+" chambres":""} ${meta.terrain?"terrain "+meta.terrain+"m2":""} ${meta.sous_sol?"sous-sol "+meta.sous_sol+"m2":""} ${meta.cheminee?"cheminee":""}${meta.dressing?" dressing":""}.
 TERMINER par: "Contactez ${profil?.nomAgent||"notre equipe"} ${profil?.telephone?"au "+profil.telephone+".":""} ${profil?.email||""}."
@@ -673,7 +674,7 @@ function Zaymmo({currentUser, onLogout}){
   // Page d'accueil
   const [homepage,setHomepage]=useState(true); // true = page accueil, false = pipeline
   const L=I18N[lang]||I18N.fr;
-  const [step,setStep]=useState("fiche");
+  const [step,setStep]=useState("photos");
   const [photos,setPhotos]=useState([]);
   const [urlIn,setUrlIn]=useState("");
   const [urlError,setUrlError]=useState("");
@@ -707,6 +708,10 @@ function Zaymmo({currentUser, onLogout}){
   const [activeLang,setActiveLang]=useState("fr");
   // Case a cocher -- inclure constatations IA photos dans l'annonce
   const [includeAIFindings,setIncludeAIFindings]=useState(false);
+  const [isRecording,setIsRecording]=useState(false);
+  const [transcribing,setTranscribing]=useState(false);
+  const [voiceError,setVoiceError]=useState("");
+  const recognitionRef=useRef(null);
 
   const fileRef=useRef(null),mountedRef=useRef(true);
   useEffect(()=>{mountedRef.current=true;return()=>{mountedRef.current=false;};},[]);
@@ -726,6 +731,8 @@ function Zaymmo({currentUser, onLogout}){
     conso_kwh_n1:"",conso_eur_n1:"",
     conso_kwh_n2:"",conso_eur_n2:"",
     cheminee:false,sous_sol:"",dressing:false,
+    garage:false,poele_granules:false,chambre_parentale:false,
+    notes_agent:"",
   });
 
   // Profil professionnel
@@ -815,6 +822,7 @@ function Zaymmo({currentUser, onLogout}){
             "Expert immobilier. JSON valide uniquement sans backticks.");
           if(mountedRef.current){
             setSynth(s);setProg(100);
+            setStep("fiche"); // Aller a la fiche pour correction puis notes
             // Sauvegarder dans l'historique
             const entry = {
               id: Date.now().toString(),
@@ -1096,7 +1104,7 @@ ${photoUrls.length>0?`<div class="photos">${photoUrls.map(u=>`<img src="${u}" al
 ${annonce.points_cles?.length>0?`<div>${annonce.points_cles.map(p=>`<span class="tag">OK ${p}</span>`).join("")}</div>`:""}
 
 <h2>Equipements</h2>
-<div>${[...L.equip,["cellier"," Cellier"],["buanderie"," Buanderie"]].filter(([k])=>meta[k]).map(([,l])=>`<span class="tag">${l}</span>`).join("")||"Standard"}</div>
+<div>${[...L.equip,["cellier"," Cellier"],["buanderie"," Buanderie"],["garage"," Garage"]].filter(([k])=>meta[k]).map(([,l])=>`<span class="tag">${l}</span>`).join("")||"Standard"}</div>
 
 ${annonce.avertissement_dpe?`<div style="background:#FFF0F0;border:1px solid #FFCCCC;border-radius:4px;padding:8px;margin-top:12px;font-size:10px;color:#CC0000">${annonce.avertissement_dpe}</div>`:""}
 
@@ -1168,6 +1176,61 @@ ${profil.nomAgence?`<div class="contact">
     // Feedback visuel
     setError(null);
     alert("Annonce sauvegardee !");
+  }
+
+  // Transcription vocale avec nettoyage IA
+  async function startVoice(){
+    if(isRecording){
+      if(recognitionRef.current)recognitionRef.current.stop();
+      setIsRecording(false);
+      return;
+    }
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR){setVoiceError("Dictee non supportee sur ce navigateur");return;}
+    const rec=new SR();
+    rec.lang=meta.langAnnonce==="en"?"en-GB":meta.langAnnonce==="de"?"de-DE":"fr-FR";
+    rec.continuous=true;
+    rec.interimResults=false;
+    rec.maxAlternatives=1;
+    recognitionRef.current=rec;
+    let transcript="";
+    rec.onstart=()=>{setIsRecording(true);setVoiceError("");};
+    rec.onresult=(e)=>{
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        if(e.results[i].isFinal)transcript+=e.results[i][0].transcript+" ";
+      }
+    };
+    rec.onerror=(e)=>{setVoiceError("Erreur: "+e.error);setIsRecording(false);};
+    rec.onend=async()=>{
+      setIsRecording(false);
+      if(!transcript.trim())return;
+      // Nettoyer avec Claude
+      setTranscribing(true);
+      try{
+        const cleaned=await callClaude([{role:"user",
+          content:"Transcription brute: "+transcript+
+          "
+
+Nettoie ce texte: supprime les hesitations (euh, ah, ben, hm), "+
+          "corrige les repetitions, reformule proprement en gardant TOUTES les informations. "+
+          "Retourne UNIQUEMENT le texte nettoye, sans commentaire."}],
+          "Tu es un correcteur de transcription vocale. Retourne uniquement le texte corrige.");
+        if(cleaned&&typeof cleaned==="string"){
+          setM("notes_agent",(meta.notes_agent||"")+(meta.notes_agent?"
+":"")+cleaned.trim());
+        } else if(cleaned&&cleaned.description_longue){
+          setM("notes_agent",(meta.notes_agent||"")+(meta.notes_agent?"
+":"")+transcript.trim());
+        } else {
+          setM("notes_agent",(meta.notes_agent||"")+(meta.notes_agent?"
+":"")+transcript.trim());
+        }
+      }catch(err){
+        setM("notes_agent",(meta.notes_agent||"")+(meta.notes_agent?"
+":"")+transcript.trim());
+      }finally{setTranscribing(false);}
+    };
+    rec.start();
   }
   function deleteHistoryEntry(id){
     const updated=history.filter(h=>h.id!==id);
@@ -1673,6 +1736,78 @@ ${profil.nomAgence?`<div class="contact">
 {/* CONTENU */}
       <div style={{flex:1,overflowY:"auto",padding:"14px 16px"}}>
 
+
+        {/* -- BLOC NOTES AGENT -- */}
+        {step==="notes"&&(
+          <div style={{animation:"fadeUp 0.3s ease"}}>
+            <Card>
+              <ST color={C.acc}>NOTES DE L'AGENT</ST>
+              <div style={{fontSize:11,color:C.muted,marginBottom:12}}>
+                Ajoutez des informations supplementaires qui enrichiront l'annonce
+              </div>
+
+              {/* Zone de texte libre */}
+              <textarea
+                value={meta.notes_agent||""}
+                onChange={e=>setM("notes_agent",e.target.value)}
+                placeholder="Ex: Cave a vin de 20m2, vue degagee sur la campagne, renovation complete en 2022, voisinage calme et residentiaire..."
+                style={{...inp,width:"100%",minHeight:140,resize:"vertical",
+                  padding:12,fontSize:13,lineHeight:1.6,fontFamily:"inherit"}}
+              />
+
+              {/* Transcription vocale */}
+              <div style={{marginTop:12,padding:"12px 14px",background:"#0A0A1E",
+                borderRadius:10,border:`1px solid ${C.acc}20`}}>
+                <div style={{fontSize:10,color:C.acc,letterSpacing:1,marginBottom:8,fontWeight:700}}>
+                  DICTER VOS NOTES
+                </div>
+                <div style={{fontSize:11,color:C.muted,marginBottom:10}}>
+                  Parlez naturellement — l'IA supprime les "euh", "ah" et reformule
+                </div>
+                <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                  <button onClick={()=>startVoice()}
+                    style={{...btn(isRecording?"#3A0A0A":C.acc+"20",
+                      isRecording?"#FF4444":C.acc),
+                      padding:"10px 16px",fontSize:12,fontWeight:700,
+                      border:`1px solid ${isRecording?"#FF444440":C.acc+"40"}`,
+                      borderRadius:8,display:"flex",alignItems:"center",gap:6}}>
+                    {isRecording?"Arret enregistrement":"Dicter"}
+                  </button>
+                  {isRecording&&(
+                    <div style={{fontSize:11,color:"#FF4444",display:"flex",alignItems:"center",gap:6}}>
+                      <span style={{width:8,height:8,borderRadius:"50%",background:"#FF4444",
+                        display:"inline-block",animation:"blink 0.8s infinite"}}/>
+                      Enregistrement...
+                    </div>
+                  )}
+                  {transcribing&&(
+                    <div style={{fontSize:11,color:C.gold}}>
+                      Transcription en cours...
+                    </div>
+                  )}
+                </div>
+                {voiceError&&(
+                  <div style={{fontSize:11,color:C.err,marginTop:8}}>{voiceError}</div>
+                )}
+              </div>
+
+              {/* Navigation */}
+              <div style={{display:"flex",justifyContent:"space-between",marginTop:14}}>
+                <button onClick={()=>setStep("fiche")}
+                  style={{...btn(C.surf,C.muted,{border:`1px solid ${C.brd}`,
+                    fontSize:12,padding:"10px 16px"})}}>
+                  Modifier infos
+                </button>
+                <button onClick={()=>genAnnonce()}
+                  disabled={!synth||loading}
+                  style={{...btn("linear-gradient(135deg,#7C6FFF,#4AE88A)"),
+                    fontSize:12,padding:"10px 18px",opacity:(!synth||loading)?0.5:1}}>
+                  Generer l'annonce
+                </button>
+              </div>
+            </Card>
+          </div>
+        )}
         {/* -- FICHE BIEN -- PAYS EN PREMIER -- */}
         <Card>
           <ST> {L.infoSub}</ST>
@@ -1727,6 +1862,10 @@ ${profil.nomAgence?`<div class="contact">
             </MF>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:10,marginBottom:8}}>
+            <MF label="Code postal">
+              <input type="text" value={meta.code_postal||""} onChange={e=>setM("code_postal",e.target.value)}
+                placeholder="ex: 57000" style={inp}/>
+            </MF>
             <MF label={L.ville}>
               <input value={meta.ville} onChange={e=>setM("ville",e.target.value)}
                 placeholder="ex: Luxembourg-Ville" style={inp}/>
@@ -1738,6 +1877,14 @@ ${profil.nomAgence?`<div class="contact">
             <MF label={L.chambres}>
               <input type="number" value={meta.chambres} onChange={e=>setM("chambres",e.target.value)}
                 placeholder="2" style={inp}/>
+            </MF>
+            <MF label="Salles de bain">
+              <input type="number" value={meta.sdb||""} onChange={e=>setM("sdb",e.target.value)}
+                placeholder="1" style={inp}/>
+            </MF>
+            <MF label="WC">
+              <input type="number" value={meta.wc||""} onChange={e=>setM("wc",e.target.value)}
+                placeholder="1" style={inp}/>
             </MF>
             <MF label={L.etage}>
               <input value={meta.etage} onChange={e=>setM("etage",e.target.value)}
@@ -1831,6 +1978,18 @@ ${profil.nomAgence?`<div class="contact">
                   onChange={e=>setM("dressing",e.target.checked)}/>
                 Dressing
               </label>
+              <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,
+                color:meta.poele_granules?C.text:"#555",cursor:"pointer",padding:"4px 0"}}>
+                <input type="checkbox" checked={!!meta.poele_granules}
+                  onChange={e=>setM("poele_granules",e.target.checked)}/>
+                Poele a granules
+              </label>
+              <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,
+                color:meta.chambre_parentale?C.text:"#555",cursor:"pointer",padding:"4px 0"}}>
+                <input type="checkbox" checked={!!meta.chambre_parentale}
+                  onChange={e=>setM("chambre_parentale",e.target.checked)}/>
+                Chambre parentale
+              </label>
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:5}}>
               <label style={{fontSize:11,color:C.muted,letterSpacing:1}}>SOUS-SOL (m2)</label>
@@ -1878,7 +2037,7 @@ ${profil.nomAgence?`<div class="contact">
           </div>
           <div style={{fontSize:11,color:C.muted,letterSpacing:1,marginBottom:10}}>{L.equipements}</div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>
-            {[...L.equip,["cellier"," Cellier"],["buanderie"," Buanderie"]].map(([k,label])=>(
+            {[...L.equip,["cellier"," Cellier"],["buanderie"," Buanderie"],["garage"," Garage"]].map(([k,label])=>(
               <label key={k} style={{display:"flex",alignItems:"center",gap:8,
                 fontSize:13,color:meta[k]?C.text:"#555",cursor:"pointer",padding:"4px 0"}}>
                 <input type="checkbox" checked={!!meta[k]} onChange={e=>setM(k,e.target.checked)}/>
@@ -2048,6 +2207,13 @@ ${profil.nomAgence?`<div class="contact">
                       style={{accentColor:C.gold,width:15,height:15}}/>
                     <span> Inclure observations photos dans l'annonce</span>
                   </label>
+                  {synth&&(
+                    <button onClick={()=>setStep("notes")}
+                      style={{...btn(C.gold+"20",C.gold,{border:`1px solid ${C.gold}40`,
+                        fontSize:12,padding:"10px 14px"})}}>
+                      Notes agent
+                    </button>
+                  )}
                   <button onClick={genAnnonce} disabled={loading}
                     style={{...btn("linear-gradient(135deg,#7C6FFF,#4AE88A)"),
                       fontSize:12,padding:"10px 16px",opacity:loading?0.5:1}}>
@@ -2134,6 +2300,24 @@ ${profil.nomAgence?`<div class="contact">
                     
                   </button>
                   {/* Boutons impression */}
+                  <button onClick={()=>{
+                    if(!annonce||!synth){alert("Generez d'abord une annonce !");return;}
+                    const saved=JSON.parse(localStorage.getItem("zaymmo_saved")||"[]");
+                    const entry={id:Date.now().toString(),savedAt:new Date().toISOString(),
+                      user:currentUser?.name||"Admin",
+                      label:(meta.type||"Bien")+" - "+(meta.ville||"NC")+" - "+new Date().toLocaleDateString("fr-FR"),
+                      meta:{...meta},synth:synth,annonce:annonce,annonces:{...annonces},
+                      photos_urls:photos.filter(p=>p.preview).map(p=>p.preview).slice(0,3)};
+                    const updated=[entry,...saved].slice(0,30);
+                    localStorage.setItem("zaymmo_saved",JSON.stringify(updated));
+                    setSavedList(updated);
+                    alert("Annonce sauvegardee !");
+                  }} style={{background:"linear-gradient(135deg,#4AE88A,#00AA55)",
+                    color:"#fff",fontWeight:800,fontSize:12,padding:"8px 14px",
+                    borderRadius:8,border:"none",cursor:"pointer",
+                    boxShadow:"0 2px 10px #4AE88A40"}}>
+                    Sauvegarder
+                  </button>
                   <button onClick={printPro}
                     style={{...btn("#1A1A2E",C.gold,{border:`1px solid ${C.gold}40`,fontSize:11,padding:"7px 12px"})}}>
                      Pro
@@ -2385,7 +2569,7 @@ ${profil.nomAgence?`<div class="contact">
                         </div>
                       )}
                       <div style={{display:"flex",gap:10,flexWrap:"wrap",fontSize:12,color:"#888",marginBottom:14}}>
-                        {[...L.equip,["cellier"," Cellier"],["buanderie"," Buanderie"]].filter(([k])=>meta[k]).map(([k,label])=><span key={k}>{label}</span>)}
+                        {[...L.equip,["cellier"," Cellier"],["buanderie"," Buanderie"],["garage"," Garage"]].filter(([k])=>meta[k]).map(([k,label])=><span key={k}>{label}</span>)}
                       </div>
                       {/* Mentions legales */}
                       <div style={{fontSize:10,color:"#AAA",lineHeight:1.6,padding:"10px 12px",
@@ -2574,10 +2758,24 @@ ${profil.nomAgence?`<div class="contact">
           {(annonce||synth)&&(
             <button onClick={()=>{
               setSynth(null);setAnnonce(null);setAnal([]);setPhotos([]);
-              setAnnonces({});setRevHist([]);setStep("fiche");
-              setMeta(m=>({...m,surface:"",pieces:"",chambres:"",ville:"",prix:"",
-                charges:"",etage:"",annee:"",terrain:"",
-                conso_kwh_n1:"",conso_eur_n1:"",conso_kwh_n2:"",conso_eur_n2:""}));
+              setAnnonces({});setRevHist([]);setStep("photos");
+              setMeta({
+                pays:"fr",type:"Appartement",adresse:"",ville:"",code_postal:"",
+                surface:"",pieces:"",chambres:"",sdb:"",wc:"",
+                terrain:"",etage:"",annee:"",prix:"",charges:"",
+                dpe:"Non renseigne",ges:"Non renseigne",
+                chauffage:"Collectif gaz",exposition:"Non renseignee",
+                devise:"EUR",langAnnonce:"fr",
+                cave:false,parking:false,terrasse:false,balcon:false,jardin:false,
+                ascenseur:false,double_vitrage:false,triple_vitrage:false,
+                fibre:false,piscine:false,gardien:false,digicode:false,
+                cellier:false,buanderie:false,garage:false,
+                cheminee:false,sous_sol:"",dressing:false,
+                poele_granules:false,chambre_parentale:false,
+                conso_kwh_n1:"",conso_eur_n1:"",conso_kwh_n2:"",conso_eur_n2:"",
+                notes_agent:"",
+              });
+              setIncludeAIFindings(false);
               setHomepage(false);
             }}
               style={{...btn("#1A0A0A","#E84A4A",{border:"1px solid #E84A4A30",fontSize:11,padding:"8px 14px"})}}>
