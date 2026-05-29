@@ -865,6 +865,7 @@ function Zaymmo({currentUser, onLogout}){
         setAnnonce(a);
         setAnnonces(prev=>({...prev,[meta.langAnnonce]:a}));
         setActiveLang(meta.langAnnonce);
+        setStep("annonce"); // Aller automatiquement a l'etape annonce
         // Sauvegarder annonce dans historique
         const hist = getHistory();
         if(hist.length>0){
@@ -1798,6 +1799,23 @@ ${profil.nomAgence?`<div class="contact">
           </div>
         )}
         {/* -- FICHE BIEN -- PAYS EN PREMIER -- */}
+        {step==="fiche"&&(
+        <>
+        {synth&&(
+          <div style={{background:"#0A1A0A",borderRadius:10,padding:"10px 14px",
+            marginBottom:10,border:"1px solid #4AE88A30",display:"flex",
+            alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
+            <div style={{fontSize:12,color:"#4AE88A",fontWeight:700}}>
+              Analyse IA terminee -- Verifiez et corrigez les infos ci-dessous
+            </div>
+            <button onClick={()=>setStep("photos")}
+              style={{fontSize:11,padding:"5px 12px",borderRadius:6,
+                background:"transparent",color:"#4AE88A",
+                border:"1px solid #4AE88A40",cursor:"pointer"}}>
+              Modifier photos
+            </button>
+          </div>
+        )}
         <Card>
           <ST> {L.infoSub}</ST>
 
@@ -2036,7 +2054,10 @@ ${profil.nomAgence?`<div class="contact">
           </div>
         </Card>
 
+        </>
+        )}
         {/* -- PHOTOS -- */}
+        {step==="photos"&&(
         <Card>
           <ST color={C.acc}> {L.addPhoto}</ST>
           {/* Multi-URL */}
@@ -2176,8 +2197,9 @@ ${profil.nomAgence?`<div class="contact">
           )}
         </Card>
 
+        )}
         {/* -- RESULTATS -- */}
-        {synth&&(
+        {(step==="fiche"||step==="analyse")&&synth&&(
           <div style={{animation:"fadeUp 0.4s ease"}}>
             <Card>
               <div style={{display:"flex",justifyContent:"space-between",
@@ -2264,7 +2286,7 @@ ${profil.nomAgence?`<div class="contact">
         )}
 
         {/* -- ANNONCE -- */}
-        {(annonce||Object.keys(annonces).length>0)&&(
+        {(step==="annonce"||step==="apercu"||step==="fiche_interne")&&(annonce||Object.keys(annonces).length>0)&&(
           <div style={{animation:"fadeUp 0.4s ease"}}>
             <Card>
               <div style={{display:"flex",justifyContent:"space-between",
